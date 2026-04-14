@@ -69,18 +69,18 @@ async def cmd_start(msg: Message):
                 trial_available = not bool(user.get("trial_used"))
                 await msg.answer(
                     texts.WELCOME + "\n\n" + texts.SUB_EXPIRED,
+                    parse_mode="Markdown",
                     reply_markup=kb.main_menu(has_sub=False, trial_available=trial_available),
                 )
                 return
             text = texts.WELCOME_BACK.format(
-                status=_status_text(status),
                 expires=_format_expires(user["expires_at"]),
                 used=_format_bytes(mz.get("used_traffic", 0)),
                 limit=_format_bytes(mz.get("data_limit")),
             )
-            await msg.answer(text, reply_markup=kb.main_menu(has_sub=True))
+            await msg.answer(text, parse_mode="Markdown", reply_markup=kb.main_menu(has_sub=True))
             return
-    await msg.answer(texts.WELCOME, reply_markup=kb.main_menu(has_sub=False))
+    await msg.answer(texts.WELCOME, parse_mode="Markdown", reply_markup=kb.main_menu(has_sub=False))
 
 
 # Trial
@@ -156,7 +156,6 @@ async def on_my_sub(cq: CallbackQuery):
         return
 
     text = texts.SUB_INFO.format(
-        status=_status_text(status),
         expires=_format_expires(user["expires_at"]),
         used=_format_bytes(mz.get("used_traffic", 0)),
         limit=_format_bytes(mz.get("data_limit")),
@@ -209,26 +208,25 @@ async def on_back(cq: CallbackQuery):
         mz = await marzban.get_user(user["marzban_username"])
         if mz and mz["status"] not in ("expired", "limited", "disabled"):
             text = texts.WELCOME_BACK.format(
-                status=_status_text(mz["status"]),
                 expires=_format_expires(user["expires_at"]),
                 used=_format_bytes(mz.get("used_traffic", 0)),
                 limit=_format_bytes(mz.get("data_limit")),
             )
             await cq.message.edit_text(
-                text, reply_markup=kb.main_menu(has_sub=True)
+                text, parse_mode="Markdown", reply_markup=kb.main_menu(has_sub=True)
             )
             await cq.answer()
             return
         # Sub exists but expired/limited/disabled
         trial_available = not bool(user.get("trial_used"))
         await cq.message.edit_text(
-            texts.WELCOME,
+            texts.WELCOME, parse_mode="Markdown",
             reply_markup=kb.main_menu(has_sub=False, trial_available=trial_available),
         )
         await cq.answer()
         return
     await cq.message.edit_text(
-        texts.WELCOME, reply_markup=kb.main_menu(has_sub=False)
+        texts.WELCOME, parse_mode="Markdown", reply_markup=kb.main_menu(has_sub=False)
     )
     await cq.answer()
 

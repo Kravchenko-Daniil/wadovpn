@@ -6,7 +6,7 @@ def main_menu(has_sub: bool = False, trial_available: bool = True) -> InlineKeyb
     if has_sub:
         buttons.append([InlineKeyboardButton(text="Моя подписка", callback_data="my_sub")])
     elif trial_available:
-        buttons.append([InlineKeyboardButton(text="Пробный период (3 дня)", callback_data="trial")])
+        buttons.append([InlineKeyboardButton(text="✨ Попробовать бесплатно", callback_data="trial")])
     buttons.append([InlineKeyboardButton(text="Купить подписку", callback_data="buy")])
     buttons.append([
         InlineKeyboardButton(text="Инструкция", callback_data="install"),
