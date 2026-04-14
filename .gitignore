@@ -1,0 +1,19 @@
+# Secrets
+.env
+certificate.txt
+private_key.txt
+docs/INFRA_STATUS.md
+
+# Python
+__pycache__/
+*.pyc
+
+# Data
+bot/data/
+
+# IDE
+.vscode/
+.idea/
+
+# Claude
+.claude/
