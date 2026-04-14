@@ -116,7 +116,7 @@ async def on_trial(cq: CallbackQuery):
     await cq.message.edit_text(
         texts.TRIAL_ACTIVATED.format(days=cfg.trial_days, sub_url=sub_url),
         parse_mode="Markdown",
-        reply_markup=kb.main_menu(has_sub=True),
+        reply_markup=kb.trial_activated(),
         link_preview_options=NO_PREVIEW,
     )
     await cq.answer()

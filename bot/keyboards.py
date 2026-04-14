@@ -57,6 +57,13 @@ def sub_info_kb() -> InlineKeyboardMarkup:
     ])
 
 
+def trial_activated() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Инструкция", callback_data="install")],
+        [InlineKeyboardButton(text="← В меню", callback_data="back_main")],
+    ])
+
+
 def sub_expired_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Купить подписку", callback_data="buy")],
