@@ -50,9 +50,25 @@ async def _handle_succeeded(
     plan = PLANS[plan_key]
     months = plan["months"]
     username = _marzban_username(tg_id)
+    user = db.get_user(tg_id)
+
+    # Friends with unlimited access donating → just thank them, don't touch sub
+    is_donation = bool(
+        user and user.get("role") == "friend" and not user.get("expires_at")
+    )
+
+    if is_donation:
+        try:
+            await bot.send_message(tg_id, texts.PAY_OK_DONATION, parse_mode="Markdown")
+        except Exception as e:
+            log.warning("Failed to notify donor %s: %s", tg_id, e)
+        await _notify_admins(
+            bot=bot, cfg=cfg, payment=payment, plan=plan, tg_id=tg_id,
+            new_expires=None, is_donation=True,
+        )
+        return
 
     # Extend from current expires_at if still active, else from now
-    user = db.get_user(tg_id)
     now = datetime.utcnow()
     base = now
     if user and user.get("expires_at"):
@@ -101,7 +117,7 @@ async def _handle_succeeded(
 
 async def _notify_admins(
     bot: Bot, cfg: Config, payment: dict, plan: dict, tg_id: int,
-    new_expires: datetime,
+    new_expires: datetime | None, is_donation: bool = False,
 ):
     if not cfg.admin_ids:
         return
@@ -117,15 +133,23 @@ async def _notify_admins(
         pass
     user_link = f"@{tg_username}" if tg_username else f"[профиль](tg://user?id={tg_id})"
 
-    text = texts.ADMIN_PAYMENT_NOTIFY.format(
-        amount=amount,
-        label=plan["label"],
-        months=plan["months"],
-        user_link=user_link,
-        tg_id=tg_id,
-        expires=new_expires.strftime("%d.%m.%Y"),
-        payment_id=payment.get("id", "?"),
-    )
+    if is_donation:
+        text = texts.ADMIN_DONATION_NOTIFY.format(
+            amount=amount,
+            user_link=user_link,
+            tg_id=tg_id,
+            payment_id=payment.get("id", "?"),
+        )
+    else:
+        text = texts.ADMIN_PAYMENT_NOTIFY.format(
+            amount=amount,
+            label=plan["label"],
+            months=plan["months"],
+            user_link=user_link,
+            tg_id=tg_id,
+            expires=new_expires.strftime("%d.%m.%Y"),
+            payment_id=payment.get("id", "?"),
+        )
     for admin_id in cfg.admin_ids:
         try:
             await bot.send_message(admin_id, text, parse_mode="Markdown")

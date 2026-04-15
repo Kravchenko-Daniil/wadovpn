@@ -1,13 +1,20 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
-def main_menu(has_sub: bool = False, trial_available: bool = True) -> InlineKeyboardMarkup:
+def main_menu(
+    has_sub: bool = False,
+    trial_available: bool = True,
+    is_unlimited: bool = False,
+) -> InlineKeyboardMarkup:
     buttons = []
     if has_sub:
         buttons.append([InlineKeyboardButton(text="Моя подписка", callback_data="my_sub")])
     elif trial_available:
         buttons.append([InlineKeyboardButton(text="✨ Попробовать бесплатно", callback_data="trial")])
-    buttons.append([InlineKeyboardButton(text="Купить подписку", callback_data="buy")])
+    if is_unlimited:
+        buttons.append([InlineKeyboardButton(text="💝 Поддержать проект", callback_data="buy")])
+    else:
+        buttons.append([InlineKeyboardButton(text="Купить подписку", callback_data="buy")])
     buttons.append([
         InlineKeyboardButton(text="Инструкция", callback_data="install"),
         InlineKeyboardButton(text="Помощь", callback_data="help"),

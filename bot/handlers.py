@@ -54,6 +54,10 @@ def _status_line(iso: str | None) -> str:
     return f"Подписка активна до {_format_expires(iso)}"
 
 
+def _is_unlimited(user: dict | None) -> bool:
+    return bool(user and user.get("role") == "friend" and not user.get("expires_at"))
+
+
 def _is_admin(tg_id: int) -> bool:
     return tg_id in cfg.admin_ids
 
@@ -93,7 +97,10 @@ async def cmd_start(msg: Message, command: CommandObject):
                 used=_format_bytes(mz.get("used_traffic", 0)),
                 limit=_format_bytes(mz.get("data_limit")),
             )
-            await msg.answer(text, parse_mode="Markdown", reply_markup=kb.main_menu(has_sub=True))
+            await msg.answer(
+                text, parse_mode="Markdown",
+                reply_markup=kb.main_menu(has_sub=True, is_unlimited=_is_unlimited(user)),
+            )
             return
     await msg.answer(texts.WELCOME, parse_mode="Markdown", reply_markup=kb.main_menu(has_sub=False))
 
@@ -228,7 +235,8 @@ async def on_back(cq: CallbackQuery):
                 limit=_format_bytes(mz.get("data_limit")),
             )
             await cq.message.edit_text(
-                text, parse_mode="Markdown", reply_markup=kb.main_menu(has_sub=True)
+                text, parse_mode="Markdown",
+                reply_markup=kb.main_menu(has_sub=True, is_unlimited=_is_unlimited(user)),
             )
             await cq.answer()
             return
@@ -250,8 +258,10 @@ async def on_back(cq: CallbackQuery):
 @router.callback_query(F.data == "buy")
 async def on_buy(cq: CallbackQuery, state: FSMContext):
     await state.clear()
+    user = db.get_user(cq.from_user.id)
+    text = texts.BUY_CHOOSE_DONATION if _is_unlimited(user) else texts.BUY_CHOOSE
     await cq.message.edit_text(
-        texts.BUY_CHOOSE, reply_markup=kb.buy_menu()
+        text, parse_mode="Markdown", reply_markup=kb.buy_menu()
     )
     await cq.answer()
 
