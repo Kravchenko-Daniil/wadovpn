@@ -98,6 +98,19 @@ async def _handle_canceled(payment: dict, bot: Bot):
     tg_id = int(metadata.get("tg_id", 0))
     if not tg_id:
         return
+
+    # Пользователь мог создать несколько pending платежей (жал «Новая ссылка»)
+    # и оплатить один — остальные ЮKassa позже авто-отменит. Не беспокоим
+    # юзера, если у него сейчас активная подписка.
+    user = db.get_user(tg_id)
+    if user and user.get("expires_at"):
+        try:
+            if datetime.fromisoformat(user["expires_at"]) > datetime.utcnow():
+                log.info("skip canceled notify for %s (active sub)", tg_id)
+                return
+        except ValueError:
+            pass
+
     try:
         await bot.send_message(tg_id, texts.PAY_CANCELED)
     except Exception as e:
