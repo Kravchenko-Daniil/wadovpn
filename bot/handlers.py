@@ -3,20 +3,24 @@ from datetime import datetime, timedelta
 
 from aiogram import Router, F
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, LinkPreviewOptions
 
 import db
 import texts
 import keyboards as kb
 from marzban import MarzbanAPI
-from config import Config
+from yookassa_api import YooKassaAPI
+from config import Config, PLANS
 
 log = logging.getLogger(__name__)
 router = Router()
 NO_PREVIEW = LinkPreviewOptions(is_disabled=True)
 
+
 # These are set from main.py at startup
 marzban: MarzbanAPI = None
+yookassa: YooKassaAPI = None
 cfg: Config = None
 
 
@@ -231,9 +235,10 @@ async def on_back(cq: CallbackQuery):
     await cq.answer()
 
 
-# Buy (placeholder — Stars payment will be added)
+# Buy flow (YooKassa)
 @router.callback_query(F.data == "buy")
-async def on_buy(cq: CallbackQuery):
+async def on_buy(cq: CallbackQuery, state: FSMContext):
+    await state.clear()
     await cq.message.edit_text(
         texts.BUY_CHOOSE, reply_markup=kb.buy_menu()
     )
@@ -241,8 +246,48 @@ async def on_buy(cq: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("buy_"))
-async def on_buy_plan(cq: CallbackQuery):
-    await cq.answer("Оплата скоро будет доступна!", show_alert=True)
+async def on_buy_plan(cq: CallbackQuery, state: FSMContext):
+    plan_key = cq.data.replace("buy_", "")
+    if plan_key not in PLANS:
+        await cq.answer("Неизвестный тариф", show_alert=True)
+        return
+    await _create_and_send_payment(cq, plan_key, edit=False)
+
+
+@router.callback_query(F.data.startswith("refresh_"))
+async def on_refresh_payment(cq: CallbackQuery):
+    plan_key = cq.data.replace("refresh_", "")
+    if plan_key not in PLANS:
+        await cq.answer("Неизвестный тариф", show_alert=True)
+        return
+    await _create_and_send_payment(cq, plan_key, edit=True)
+
+
+async def _create_and_send_payment(cq: CallbackQuery, plan_key: str, edit: bool):
+    plan = PLANS[plan_key]
+    tg_id = cq.from_user.id
+    try:
+        payment = await yookassa.create_payment(tg_id, plan_key)
+    except Exception as e:
+        log.error("create_payment failed: %s", e)
+        await cq.answer("Не удалось создать платёж. Попробуй позже.", show_alert=True)
+        return
+
+    payment_id = payment["id"]
+    confirm_url = payment["confirmation"]["confirmation_url"]
+    db.add_payment(
+        tg_id=tg_id, amount=plan["price"], currency="RUB", method="yookassa",
+        plan=plan_key, email="", external_id=payment_id,
+    )
+
+    text = texts.PAY_CREATED.format(label=plan["label"], price=plan["price"])
+    markup = kb.pay_link(confirm_url, plan_key)
+    if edit:
+        await cq.message.edit_text(text, parse_mode="Markdown", reply_markup=markup)
+        await cq.answer("Ссылка обновлена")
+    else:
+        await cq.message.answer(text, parse_mode="Markdown", reply_markup=markup)
+        await cq.answer()
 
 
 # ── Admin commands ──────────────────────────────────────────────

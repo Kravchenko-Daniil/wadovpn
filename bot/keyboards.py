@@ -72,8 +72,26 @@ def sub_expired_kb() -> InlineKeyboardMarkup:
 
 
 def buy_menu() -> InlineKeyboardMarkup:
+    from config import PLANS
+    rows = []
+    for key, plan in PLANS.items():
+        rows.append([InlineKeyboardButton(
+            text=f"{plan['label']} — {plan['price']} ₽",
+            callback_data=f"buy_{key}",
+        )])
+    rows.append([InlineKeyboardButton(text="Назад", callback_data="back_main")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def pay_link(url: str, plan_key: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="1 месяц — 150 Stars", callback_data="buy_1m")],
-        [InlineKeyboardButton(text="3 месяца — 400 Stars", callback_data="buy_3m")],
+        [InlineKeyboardButton(text="💳 Оплатить", url=url)],
+        [InlineKeyboardButton(text="🔄 Новая ссылка", callback_data=f"refresh_{plan_key}")],
         [InlineKeyboardButton(text="Назад", callback_data="back_main")],
+    ])
+
+
+def cancel_email() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Отмена", callback_data="back_main")],
     ])

@@ -28,16 +28,28 @@ def init_db():
         """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS payments (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                tg_id       INTEGER,
-                amount      REAL,
-                currency    TEXT,
-                method      TEXT,
-                status      TEXT DEFAULT 'pending',
-                created_at  TEXT DEFAULT (datetime('now')),
-                payload     TEXT
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                tg_id           INTEGER,
+                amount          REAL,
+                currency        TEXT,
+                method          TEXT,
+                status          TEXT DEFAULT 'pending',
+                created_at      TEXT DEFAULT (datetime('now')),
+                payload         TEXT,
+                external_id     TEXT UNIQUE,
+                plan            TEXT,
+                email           TEXT
             )
         """)
+        # Migrate legacy tables
+        cols = {row[1] for row in c.execute("PRAGMA table_info(payments)").fetchall()}
+        for col, decl in [
+            ("external_id", "TEXT"),
+            ("plan", "TEXT"),
+            ("email", "TEXT"),
+        ]:
+            if col not in cols:
+                c.execute(f"ALTER TABLE payments ADD COLUMN {col} {decl}")
 
 
 def get_user(tg_id: int) -> dict | None:
@@ -84,15 +96,33 @@ def get_active_users_count() -> int:
 
 
 def add_payment(tg_id: int, amount: float, currency: str,
-                method: str, payload: str = "") -> int:
+                method: str, plan: str, email: str,
+                external_id: str, payload: str = "") -> int:
     with _conn() as c:
         cur = c.execute("""
-            INSERT INTO payments (tg_id, amount, currency, method, payload)
-            VALUES (?, ?, ?, ?, ?)
-        """, (tg_id, amount, currency, method, payload))
+            INSERT INTO payments (tg_id, amount, currency, method, plan, email, external_id, payload)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (tg_id, amount, currency, method, plan, email, external_id, payload))
         return cur.lastrowid
 
 
 def update_payment(payment_id: int, status: str):
     with _conn() as c:
         c.execute("UPDATE payments SET status = ? WHERE id = ?", (status, payment_id))
+
+
+def update_payment_by_external(external_id: str, status: str):
+    with _conn() as c:
+        c.execute(
+            "UPDATE payments SET status = ? WHERE external_id = ?",
+            (status, external_id),
+        )
+
+
+def get_email(tg_id: int) -> str | None:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT email FROM payments WHERE tg_id = ? AND email IS NOT NULL "
+            "ORDER BY id DESC LIMIT 1", (tg_id,)
+        ).fetchone()
+        return row["email"] if row else None

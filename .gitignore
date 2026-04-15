@@ -17,3 +17,6 @@ bot/data/
 
 # Claude
 .claude/
+
+# Imported external docs (HTML dumps, research materials)
+docs/importedd/
