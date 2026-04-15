@@ -155,6 +155,26 @@ INVITE_ALREADY_HAS_SUB = (
 INVITES_EMPTY = "Нет активных инвайтов."
 INVITES_HEADER = "**Инвайты:**\n\n"
 
+WHITELIST_USAGE = (
+    "Формат:\n"
+    "`/whitelist add @username` — добавить\n"
+    "`/whitelist del @username` — удалить\n"
+    "`/whitelist` — список"
+)
+WHITELIST_ADDED = "✅ `@{username}` добавлен в whitelist. При первом `/start` получит бессрочный доступ."
+WHITELIST_EXISTS = "`@{username}` уже в whitelist."
+WHITELIST_REMOVED = "🗑 `@{username}` удалён из whitelist."
+WHITELIST_NOT_FOUND = "`@{username}` не найден в whitelist."
+WHITELIST_EMPTY = "Whitelist пуст."
+WHITELIST_HEADER = "**Whitelist:**\n\n"
+
+WHITELIST_ACTIVATED = (
+    "🎁 Привет! Ты в списке друзей — даю тебе бессрочный доступ.\n\n"
+    "Твоя ссылка:\n"
+    "`{sub_url}`\n\n"
+    "Скопируй и открой **Инструкция**."
+)
+
 ADMIN_PAYMENT_NOTIFY = (
     "💰 **Новая оплата**\n\n"
     "Сумма: **{amount} ₽**\n"

@@ -62,6 +62,14 @@ def init_db():
             )
         """)
 
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS whitelist (
+                username    TEXT PRIMARY KEY,
+                added_by    INTEGER,
+                added_at    TEXT DEFAULT (datetime('now'))
+            )
+        """)
+
 
 def get_user(tg_id: int) -> dict | None:
     with _conn() as c:
@@ -157,6 +165,44 @@ def get_all_invites() -> list[dict]:
     with _conn() as c:
         rows = c.execute(
             "SELECT * FROM invites ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def add_whitelist(username: str, added_by: int) -> bool:
+    with _conn() as c:
+        try:
+            c.execute(
+                "INSERT INTO whitelist (username, added_by) VALUES (?, ?)",
+                (username.lower(), added_by),
+            )
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+
+def remove_whitelist(username: str) -> bool:
+    with _conn() as c:
+        cur = c.execute(
+            "DELETE FROM whitelist WHERE username = ?", (username.lower(),)
+        )
+        return cur.rowcount > 0
+
+
+def is_whitelisted(username: str | None) -> bool:
+    if not username:
+        return False
+    with _conn() as c:
+        row = c.execute(
+            "SELECT 1 FROM whitelist WHERE username = ?", (username.lower(),)
+        ).fetchone()
+        return row is not None
+
+
+def get_all_whitelist() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM whitelist ORDER BY added_at DESC"
         ).fetchall()
         return [dict(r) for r in rows]
 

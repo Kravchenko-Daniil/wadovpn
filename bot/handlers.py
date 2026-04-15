@@ -79,7 +79,25 @@ async def cmd_start(msg: Message, command: CommandObject):
     if arg.startswith("inv_"):
         await _activate_invite(msg, arg[4:])
         return
-    user = db.get_user(msg.from_user.id)
+
+    tg_id = msg.from_user.id
+    tg_username = msg.from_user.username
+    user = db.get_user(tg_id)
+    if not _is_unlimited(user) and db.is_whitelisted(tg_username):
+        has_active_paid = bool(
+            user and user.get("expires_at")
+            and user["expires_at"] > datetime.utcnow().isoformat()
+        )
+        if not has_active_paid:
+            sub_url = await _grant_unlimited_friend(tg_id, tg_username)
+            await msg.answer(
+                texts.WHITELIST_ACTIVATED.format(sub_url=sub_url),
+                parse_mode="Markdown",
+                reply_markup=kb.trial_activated(),
+                link_preview_options=NO_PREVIEW,
+            )
+            return
+
     if user and user["marzban_username"]:
         mz = await marzban.get_user(user["marzban_username"])
         if mz:
@@ -494,6 +512,26 @@ async def cmd_invites(msg: Message):
     )
 
 
+async def _grant_unlimited_friend(tg_id: int, tg_username: str | None) -> str:
+    """Create or upgrade user to unlimited friend. Returns sub_url."""
+    username = _marzban_username(tg_id)
+    existing = await marzban.get_user(username)
+    if existing:
+        mz = await marzban.update_user(username, expire=0, status="active")
+    else:
+        mz = await marzban.create_user(username, 0)
+
+    user = db.get_user(tg_id)
+    if user:
+        db.update_user(tg_id, role="friend", expires_at=None)
+    else:
+        db.create_user(
+            tg_id=tg_id, username=tg_username,
+            marzban_username=username, role="friend", expires_at=None,
+        )
+    return mz.get("subscription_url", "")
+
+
 async def _activate_invite(msg: Message, code: str):
     tg_id = msg.from_user.id
     invite = db.get_invite(code)
@@ -512,35 +550,57 @@ async def _activate_invite(msg: Message, code: str):
                 return
         except ValueError:
             pass
-    # User with NULL expires_at and role=friend already has unlimited — block re-use.
-    if user and user.get("role") == "friend" and not user.get("expires_at"):
+    if _is_unlimited(user):
         await msg.answer(texts.INVITE_ALREADY_HAS_SUB)
         return
 
-    username = _marzban_username(tg_id)
-    existing = await marzban.get_user(username)
-    if existing:
-        mz = await marzban.update_user(username, expire=0, status="active")
-    else:
-        mz = await marzban.create_user(username, 0)
-
-    if user:
-        db.update_user(tg_id, role="friend", expires_at=None)
-    else:
-        db.create_user(
-            tg_id=tg_id,
-            username=msg.from_user.username,
-            marzban_username=username,
-            role="friend",
-            expires_at=None,
-        )
-
+    sub_url = await _grant_unlimited_friend(tg_id, msg.from_user.username)
     db.increment_invite_use(code)
 
-    sub_url = mz.get("subscription_url", "")
     await msg.answer(
         texts.INVITE_ACTIVATED.format(sub_url=sub_url),
         parse_mode="Markdown",
         reply_markup=kb.trial_activated(),
         link_preview_options=NO_PREVIEW,
     )
+
+
+# ── Whitelist ───────────────────────────────────────────────────
+
+@router.message(Command("whitelist"))
+async def cmd_whitelist(msg: Message):
+    if not _is_admin(msg.from_user.id):
+        await msg.answer(texts.NOT_ADMIN)
+        return
+
+    parts = msg.text.split(maxsplit=2)
+    if len(parts) == 1:
+        rows = db.get_all_whitelist()
+        if not rows:
+            await msg.answer(texts.WHITELIST_EMPTY)
+            return
+        lines = [f"• `@{r['username']}`" for r in rows]
+        await msg.answer(
+            texts.WHITELIST_HEADER + "\n".join(lines), parse_mode="Markdown"
+        )
+        return
+
+    if len(parts) < 3:
+        await msg.answer(texts.WHITELIST_USAGE, parse_mode="Markdown")
+        return
+
+    action, raw = parts[1].lower(), parts[2].strip().lstrip("@")
+    if not raw:
+        await msg.answer(texts.WHITELIST_USAGE, parse_mode="Markdown")
+        return
+
+    if action == "add":
+        added = db.add_whitelist(raw, msg.from_user.id)
+        text = texts.WHITELIST_ADDED if added else texts.WHITELIST_EXISTS
+        await msg.answer(text.format(username=raw.lower()), parse_mode="Markdown")
+    elif action == "del":
+        removed = db.remove_whitelist(raw)
+        text = texts.WHITELIST_REMOVED if removed else texts.WHITELIST_NOT_FOUND
+        await msg.answer(text.format(username=raw.lower()), parse_mode="Markdown")
+    else:
+        await msg.answer(texts.WHITELIST_USAGE, parse_mode="Markdown")
