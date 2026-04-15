@@ -573,7 +573,7 @@ async def cmd_whitelist(msg: Message):
         await msg.answer(texts.NOT_ADMIN)
         return
 
-    parts = msg.text.split(maxsplit=2)
+    parts = msg.text.split()
     if len(parts) == 1:
         rows = db.get_all_whitelist()
         if not rows:
@@ -589,18 +589,26 @@ async def cmd_whitelist(msg: Message):
         await msg.answer(texts.WHITELIST_USAGE, parse_mode="Markdown")
         return
 
-    action, raw = parts[1].lower(), parts[2].strip().lstrip("@")
-    if not raw:
+    action = parts[1].lower()
+    usernames = [p.strip().lstrip("@").lower() for p in parts[2:] if p.strip().lstrip("@")]
+    if not usernames or action not in ("add", "del"):
         await msg.answer(texts.WHITELIST_USAGE, parse_mode="Markdown")
         return
 
-    if action == "add":
-        added = db.add_whitelist(raw, msg.from_user.id)
-        text = texts.WHITELIST_ADDED if added else texts.WHITELIST_EXISTS
-        await msg.answer(text.format(username=raw.lower()), parse_mode="Markdown")
-    elif action == "del":
-        removed = db.remove_whitelist(raw)
-        text = texts.WHITELIST_REMOVED if removed else texts.WHITELIST_NOT_FOUND
-        await msg.answer(text.format(username=raw.lower()), parse_mode="Markdown")
-    else:
-        await msg.answer(texts.WHITELIST_USAGE, parse_mode="Markdown")
+    added, existed, removed, not_found = [], [], [], []
+    for u in usernames:
+        if action == "add":
+            (added if db.add_whitelist(u, msg.from_user.id) else existed).append(u)
+        else:
+            (removed if db.remove_whitelist(u) else not_found).append(u)
+
+    lines = []
+    if added:
+        lines.append("✅ Добавлены: " + ", ".join(f"`@{u}`" for u in added))
+    if existed:
+        lines.append("ℹ️ Уже были: " + ", ".join(f"`@{u}`" for u in existed))
+    if removed:
+        lines.append("🗑 Удалены: " + ", ".join(f"`@{u}`" for u in removed))
+    if not_found:
+        lines.append("❓ Не найдены: " + ", ".join(f"`@{u}`" for u in not_found))
+    await msg.answer("\n".join(lines), parse_mode="Markdown")

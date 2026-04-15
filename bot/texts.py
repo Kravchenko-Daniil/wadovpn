@@ -157,8 +157,8 @@ INVITES_HEADER = "**Инвайты:**\n\n"
 
 WHITELIST_USAGE = (
     "Формат:\n"
-    "`/whitelist add @username` — добавить\n"
-    "`/whitelist del @username` — удалить\n"
+    "`/whitelist add @user1 @user2 ...` — добавить (можно пачкой)\n"
+    "`/whitelist del @user1 @user2 ...` — удалить\n"
     "`/whitelist` — список"
 )
 WHITELIST_ADDED = "✅ `@{username}` добавлен в whitelist. При первом `/start` получит бессрочный доступ."
