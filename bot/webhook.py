@@ -38,7 +38,7 @@ def _ip_allowed(remote: str) -> bool:
 
 
 async def _handle_succeeded(
-    payment: dict, bot: Bot, marzban: MarzbanAPI
+    payment: dict, bot: Bot, marzban: MarzbanAPI, cfg: Config
 ):
     metadata = payment.get("metadata") or {}
     tg_id = int(metadata.get("tg_id", 0))
@@ -47,7 +47,8 @@ async def _handle_succeeded(
         log.warning("payment.succeeded missing metadata: %s", payment.get("id"))
         return
 
-    months = PLANS[plan_key]["months"]
+    plan = PLANS[plan_key]
+    months = plan["months"]
     username = _marzban_username(tg_id)
 
     # Extend from current expires_at if still active, else from now
@@ -92,6 +93,45 @@ async def _handle_succeeded(
     except Exception as e:
         log.warning("Failed to notify user %s: %s", tg_id, e)
 
+    await _notify_admins(
+        bot=bot, cfg=cfg, payment=payment, plan=plan, tg_id=tg_id,
+        new_expires=new_expires,
+    )
+
+
+async def _notify_admins(
+    bot: Bot, cfg: Config, payment: dict, plan: dict, tg_id: int,
+    new_expires: datetime,
+):
+    if not cfg.admin_ids:
+        return
+
+    amount_obj = payment.get("amount") or {}
+    amount = amount_obj.get("value", str(plan["price"]))
+
+    tg_username = None
+    try:
+        chat = await bot.get_chat(tg_id)
+        tg_username = chat.username
+    except Exception:
+        pass
+    user_link = f"@{tg_username}" if tg_username else f"[профиль](tg://user?id={tg_id})"
+
+    text = texts.ADMIN_PAYMENT_NOTIFY.format(
+        amount=amount,
+        label=plan["label"],
+        months=plan["months"],
+        user_link=user_link,
+        tg_id=tg_id,
+        expires=new_expires.strftime("%d.%m.%Y"),
+        payment_id=payment.get("id", "?"),
+    )
+    for admin_id in cfg.admin_ids:
+        try:
+            await bot.send_message(admin_id, text, parse_mode="Markdown")
+        except Exception as e:
+            log.warning("Failed to notify admin %s: %s", admin_id, e)
+
 
 async def _handle_canceled(payment: dict, bot: Bot):
     metadata = payment.get("metadata") or {}
@@ -117,7 +157,9 @@ async def _handle_canceled(payment: dict, bot: Bot):
         log.warning("Failed to notify canceled %s: %s", tg_id, e)
 
 
-def build_app(bot: Bot, marzban: MarzbanAPI, yookassa: YooKassaAPI) -> web.Application:
+def build_app(
+    bot: Bot, marzban: MarzbanAPI, yookassa: YooKassaAPI, cfg: Config
+) -> web.Application:
     async def health(request: web.Request) -> web.Response:
         return web.Response(text="ok")
 
@@ -149,7 +191,7 @@ def build_app(bot: Bot, marzban: MarzbanAPI, yookassa: YooKassaAPI) -> web.Appli
 
         if event == "payment.succeeded" and obj.get("status") == "succeeded":
             db.update_payment_by_external(payment_id, "succeeded")
-            await _handle_succeeded(obj, bot, marzban)
+            await _handle_succeeded(obj, bot, marzban, cfg)
         elif event == "payment.canceled":
             db.update_payment_by_external(payment_id, "canceled")
             await _handle_canceled(obj, bot)
@@ -163,7 +205,7 @@ def build_app(bot: Bot, marzban: MarzbanAPI, yookassa: YooKassaAPI) -> web.Appli
 
 
 async def start_webhook(cfg: Config, bot: Bot, marzban: MarzbanAPI, yookassa: YooKassaAPI):
-    app = build_app(bot, marzban, yookassa)
+    app = build_app(bot, marzban, yookassa, cfg)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, cfg.webhook_host, cfg.webhook_port)

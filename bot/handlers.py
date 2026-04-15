@@ -1,8 +1,9 @@
 import logging
+import secrets
 from datetime import datetime, timedelta
 
 from aiogram import Router, F
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, LinkPreviewOptions
 
@@ -47,6 +48,12 @@ def _format_expires(iso: str | None) -> str:
         return str(iso)
 
 
+def _status_line(iso: str | None) -> str:
+    if not iso:
+        return "Подписка бессрочная"
+    return f"Подписка активна до {_format_expires(iso)}"
+
+
 def _is_admin(tg_id: int) -> bool:
     return tg_id in cfg.admin_ids
 
@@ -63,7 +70,11 @@ def _status_text(status: str) -> str:
 
 # /start
 @router.message(Command("start"))
-async def cmd_start(msg: Message):
+async def cmd_start(msg: Message, command: CommandObject):
+    arg = (command.args or "").strip()
+    if arg.startswith("inv_"):
+        await _activate_invite(msg, arg[4:])
+        return
     user = db.get_user(msg.from_user.id)
     if user and user["marzban_username"]:
         mz = await marzban.get_user(user["marzban_username"])
@@ -78,7 +89,7 @@ async def cmd_start(msg: Message):
                 )
                 return
             text = texts.WELCOME_BACK.format(
-                expires=_format_expires(user["expires_at"]),
+                status_line=_status_line(user["expires_at"]),
                 used=_format_bytes(mz.get("used_traffic", 0)),
                 limit=_format_bytes(mz.get("data_limit")),
             )
@@ -160,7 +171,7 @@ async def on_my_sub(cq: CallbackQuery):
         return
 
     text = texts.SUB_INFO.format(
-        expires=_format_expires(user["expires_at"]),
+        status_line=_status_line(user["expires_at"]),
         used=_format_bytes(mz.get("used_traffic", 0)),
         limit=_format_bytes(mz.get("data_limit")),
         sub_url=mz.get("subscription_url", ""),
@@ -212,7 +223,7 @@ async def on_back(cq: CallbackQuery):
         mz = await marzban.get_user(user["marzban_username"])
         if mz and mz["status"] not in ("expired", "limited", "disabled"):
             text = texts.WELCOME_BACK.format(
-                expires=_format_expires(user["expires_at"]),
+                status_line=_status_line(user["expires_at"]),
                 used=_format_bytes(mz.get("used_traffic", 0)),
                 limit=_format_bytes(mz.get("data_limit")),
             )
@@ -414,4 +425,112 @@ async def cmd_users(msg: Message):
     await msg.answer(
         "**Пользователи** (последние 20):\n\n" + "\n".join(lines),
         parse_mode="Markdown",
+    )
+
+
+# ── Invites ─────────────────────────────────────────────────────
+
+@router.message(Command("invite"))
+async def cmd_invite(msg: Message):
+    if not _is_admin(msg.from_user.id):
+        await msg.answer(texts.NOT_ADMIN)
+        return
+
+    parts = msg.text.split(maxsplit=2)
+    max_uses = 1
+    note = ""
+    if len(parts) >= 2:
+        try:
+            max_uses = int(parts[1])
+            if max_uses < 1:
+                raise ValueError
+        except ValueError:
+            await msg.answer(texts.INVITE_USAGE, parse_mode="Markdown")
+            return
+    if len(parts) >= 3:
+        note = parts[2]
+
+    code = secrets.token_hex(4)
+    db.create_invite(code=code, max_uses=max_uses, created_by=msg.from_user.id, note=note)
+
+    me = await msg.bot.get_me()
+    link = f"https://t.me/{me.username}?start=inv_{code}"
+    await msg.answer(
+        texts.INVITE_CREATED.format(max_uses=max_uses, link=link),
+        parse_mode="Markdown",
+        link_preview_options=NO_PREVIEW,
+    )
+
+
+@router.message(Command("invites"))
+async def cmd_invites(msg: Message):
+    if not _is_admin(msg.from_user.id):
+        await msg.answer(texts.NOT_ADMIN)
+        return
+
+    invites = db.get_all_invites()
+    if not invites:
+        await msg.answer(texts.INVITES_EMPTY)
+        return
+
+    lines = []
+    for inv in invites[:30]:
+        note = f" — {inv['note']}" if inv.get("note") else ""
+        lines.append(
+            f"`{inv['code']}` | {inv['uses_count']}/{inv['max_uses']}{note}"
+        )
+    await msg.answer(
+        texts.INVITES_HEADER + "\n".join(lines), parse_mode="Markdown"
+    )
+
+
+async def _activate_invite(msg: Message, code: str):
+    tg_id = msg.from_user.id
+    invite = db.get_invite(code)
+    if not invite:
+        await msg.answer(texts.INVITE_INVALID)
+        return
+    if invite["uses_count"] >= invite["max_uses"]:
+        await msg.answer(texts.INVITE_EXHAUSTED)
+        return
+
+    user = db.get_user(tg_id)
+    if user and user.get("expires_at"):
+        try:
+            if datetime.fromisoformat(user["expires_at"]) > datetime.utcnow():
+                await msg.answer(texts.INVITE_ALREADY_HAS_SUB)
+                return
+        except ValueError:
+            pass
+    # User with NULL expires_at and role=friend already has unlimited — block re-use.
+    if user and user.get("role") == "friend" and not user.get("expires_at"):
+        await msg.answer(texts.INVITE_ALREADY_HAS_SUB)
+        return
+
+    username = _marzban_username(tg_id)
+    existing = await marzban.get_user(username)
+    if existing:
+        mz = await marzban.update_user(username, expire=0, status="active")
+    else:
+        mz = await marzban.create_user(username, 0)
+
+    if user:
+        db.update_user(tg_id, role="friend", expires_at=None)
+    else:
+        db.create_user(
+            tg_id=tg_id,
+            username=msg.from_user.username,
+            marzban_username=username,
+            role="friend",
+            expires_at=None,
+        )
+
+    db.increment_invite_use(code)
+
+    sub_url = mz.get("subscription_url", "")
+    await msg.answer(
+        texts.INVITE_ACTIVATED.format(sub_url=sub_url),
+        parse_mode="Markdown",
+        reply_markup=kb.trial_activated(),
+        link_preview_options=NO_PREVIEW,
     )

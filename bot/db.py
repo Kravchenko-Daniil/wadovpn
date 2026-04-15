@@ -51,6 +51,17 @@ def init_db():
             if col not in cols:
                 c.execute(f"ALTER TABLE payments ADD COLUMN {col} {decl}")
 
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS invites (
+                code         TEXT PRIMARY KEY,
+                max_uses     INTEGER DEFAULT 1,
+                uses_count   INTEGER DEFAULT 0,
+                created_by   INTEGER,
+                created_at   TEXT DEFAULT (datetime('now')),
+                note         TEXT
+            )
+        """)
+
 
 def get_user(tg_id: int) -> dict | None:
     with _conn() as c:
@@ -90,7 +101,9 @@ def get_active_users_count() -> int:
     now = datetime.utcnow().isoformat()
     with _conn() as c:
         row = c.execute(
-            "SELECT COUNT(*) as cnt FROM users WHERE expires_at > ?", (now,)
+            "SELECT COUNT(*) as cnt FROM users "
+            "WHERE expires_at IS NULL OR expires_at > ?",
+            (now,),
         ).fetchone()
         return row["cnt"]
 
@@ -117,6 +130,35 @@ def update_payment_by_external(external_id: str, status: str):
             "UPDATE payments SET status = ? WHERE external_id = ?",
             (status, external_id),
         )
+
+
+def create_invite(code: str, max_uses: int, created_by: int, note: str = "") -> None:
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO invites (code, max_uses, created_by, note) VALUES (?, ?, ?, ?)",
+            (code, max_uses, created_by, note),
+        )
+
+
+def get_invite(code: str) -> dict | None:
+    with _conn() as c:
+        row = c.execute("SELECT * FROM invites WHERE code = ?", (code,)).fetchone()
+        return dict(row) if row else None
+
+
+def increment_invite_use(code: str) -> None:
+    with _conn() as c:
+        c.execute(
+            "UPDATE invites SET uses_count = uses_count + 1 WHERE code = ?", (code,)
+        )
+
+
+def get_all_invites() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM invites ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 def get_email(tg_id: int) -> str | None:

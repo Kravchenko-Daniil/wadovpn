@@ -6,7 +6,7 @@ WELCOME = (
 
 WELCOME_BACK = (
     "**Wado VPN**\n\n"
-    "Подписка активна до {expires}\n"
+    "{status_line}\n"
     "Трафик: {used} / {limit}"
 )
 
@@ -20,7 +20,7 @@ TRIAL_ACTIVATED = (
 )
 
 SUB_INFO = (
-    "Активна до {expires}\n"
+    "{status_line}\n"
     "Трафик: {used} / {limit}\n\n"
     "Ссылка:\n"
     "`{sub_url}`"
@@ -114,6 +114,45 @@ PAY_CANCELED = (
 # Admin
 GRANT_OK = "Доступ выдан: {username}\nСрок: {days} дней\nSub: `{sub_url}`"
 GRANT_USAGE = "Формат: /grant <tg_id> <days>"
+
+INVITE_CREATED = (
+    "🎁 Инвайт создан\n\n"
+    "Бессрочный доступ, активаций: {max_uses}\n\n"
+    "Ссылка для друга:\n"
+    "`{link}`\n\n"
+    "Просто перешли её — человек жмёт, бот сам всё настроит."
+)
+INVITE_USAGE = (
+    "Формат: /invite [max_uses] [note]\n\n"
+    "Примеры:\n"
+    "`/invite` — на одного человека\n"
+    "`/invite 5` — на 5 человек\n"
+    "`/invite 1 мама` — с подписью"
+)
+INVITE_ACTIVATED = (
+    "🎉 Тебе открыли доступ!\n\n"
+    "Подписка бессрочная.\n\n"
+    "Твоя ссылка:\n"
+    "`{sub_url}`\n\n"
+    "Скопируй и открой **Инструкция**."
+)
+INVITE_INVALID = "Инвайт не найден или уже использован."
+INVITE_EXHAUSTED = "У этого инвайта закончились активации."
+INVITE_ALREADY_HAS_SUB = (
+    "У тебя уже есть активная подписка — инвайт не нужен 🙂"
+)
+INVITES_EMPTY = "Нет активных инвайтов."
+INVITES_HEADER = "**Инвайты:**\n\n"
+
+ADMIN_PAYMENT_NOTIFY = (
+    "💰 **Новая оплата**\n\n"
+    "Сумма: **{amount} ₽**\n"
+    "План: {label} ({months} мес.)\n"
+    "Юзер: {user_link} (`{tg_id}`)\n"
+    "Активна до: **{expires}**\n"
+    "Payment ID: `{payment_id}`\n\n"
+    "👉 Пробей чек в «Мой налог»"
+)
 STATS_TEXT = (
     "**Статистика:**\n\n"
     "Всего юзеров: {total}\n"
