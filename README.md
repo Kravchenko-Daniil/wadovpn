@@ -1,55 +1,47 @@
-# wadovpn
+<div align="center">
 
-Subscription-based VPN service for friends and paying customers in Russia — distributed through a Telegram bot. No custom client apps; users install standard ones (Hiddify, Streisand, v2rayNG, Amnezia) and get a rotating subscription URL from the bot.
+# 🌐 wadovpn
 
-## Stack
+### VPN-подписка для своих — покупается и управляется полностью через Telegram
 
-- **Bot:** Python · [aiogram](https://github.com/aiogram/aiogram) · aiohttp (webhook server) · SQLite
-- **VPN backend:** [Marzban](https://github.com/Gozargah/Marzban) (Xray) — VLESS Reality + Shadowsocks-2022
-- **Payments:** YooKassa (RUB) with signed webhook verification
-- **Infra:** Docker + docker-compose · nginx (SSL via Let's Encrypt) · multi-node Hetzner / Aeza
+`Python` · `aiogram` · `Marzban` · `YooKassa` · `Docker`  ·  🟢 в проде
 
-## How it works
+</div>
 
-```
-Telegram user
-     ↓  /start
-aiogram bot (Python)
-     ↓  creates / renews user in Marzban via HTTP API
-     ↓  returns a multi-protocol subscription link (self-rotating)
-User's VPN client auto-picks a working config.
+---
 
-Payment flow:
-  user taps "Buy subscription"
-    → bot creates YooKassa payment → returns confirmation_url
-    → user pays on YooKassa page
-    → YooKassa → HTTPS webhook → nginx → bot
-    → bot re-verifies payment, extends user in Marzban, notifies user
-```
+## 🌱 Что это
 
-**Why a subscription URL instead of a static config?** It lets the backend rotate/fix configs without user action — critical against DPI (ТСПУ) and iOS client changes. One sub-link serves 4–5 protocols (Reality on different ports with different SNI, gRPC+TLS, Shadowsocks-2022, AmneziaWG); the client auto-switches to whichever works.
+В России заблокировано то, чем люди пользуются каждый день — YouTube, Notion, Discord, Copilot, половина нужных сайтов. Обычные VPN из сторов сами блокируются через неделю, настраивать серверы самостоятельно — сложно.
 
-## Repo layout
+**wadovpn решает это так:** покупаешь подписку прямо в Telegram за пару кликов, получаешь ссылку, вставляешь в любое готовое приложение (Hiddify, Streisand, v2rayNG) — и всё работает. Если один протокол ломается, клиент сам перекидывается на другой, без твоего участия.
 
-- `bot/`
-  - `main.py` · `handlers.py` · `keyboards.py` · `texts.py` — UI & user flow
-  - `marzban.py` — Marzban HTTP client (create/renew/revoke users)
-  - `yookassa_api.py` — YooKassa payment creation + verification
-  - `webhook.py` — aiohttp webhook with IP allowlist
-  - `db.py` — SQLite (users, subscriptions, payments)
-  - `config.py` — env-based config
-  - `Dockerfile` · `docker-compose.yml`
-- `deploy/nginx/` — production nginx config (SSL + proxy to bot webhook)
-- `docs/TZ.md` — full product spec (Russian)
+## ⚡ Как это выглядит для пользователя
 
-## Run locally
+1. Открываешь бота → `/start`
+2. Выбираешь тариф (1 / 3 / 6 / 12 месяцев)
+3. Оплачиваешь картой через ЮKassa
+4. Получаешь одну ссылку-подписку
+5. Вставляешь в приложение — готово
+
+Когда подписка кончается — бот сам напоминает. Когда блокировки обновляются — конфиги меняются на сервере, делать ничего не нужно.
+
+## 🔧 Под капотом
+
+- **Бот** на Python + aiogram, асинхронный, с отдельным webhook-сервером для уведомлений от ЮKassa
+- **VPN-бэкенд** — [Marzban](https://github.com/Gozargah/Marzban) (панель над Xray). Одна ссылка-подписка отдаёт 4-5 протоколов (Reality на разных портах с разными SNI, gRPC+TLS, Shadowsocks-2022) — клиент переключается на работающий сам
+- **Платежи** — ЮKassa с проверкой подписи вебхука и перепроверкой через их API (чтобы вебхук нельзя было подделать)
+- **Инфра** — Docker Compose, nginx + Let's Encrypt, ноды в Hetzner / Aeza
+
+Полное продуктовое ТЗ и архитектура — в [`docs/TZ.md`](docs/TZ.md).
+
+## 📦 Запуск
 
 ```bash
-cp bot/.env.example bot/.env    # fill BOT_TOKEN, YOOKASSA_SHOP_ID, MARZBAN_URL, ...
-cd bot
-docker compose up -d
+cp bot/.env.example bot/.env    # заполнить BOT_TOKEN, YOOKASSA_SHOP_ID, MARZBAN_URL...
+cd bot && docker compose up -d
 ```
 
-## Status
+---
 
-Active — MVP shipped April 2026, running in production for early users.
+<sub>🟢 В проде · MVP апрель 2026</sub>
