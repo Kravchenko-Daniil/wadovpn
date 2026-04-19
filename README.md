@@ -31,7 +31,7 @@
 - **Бот** на Python + aiogram, асинхронный, с отдельным webhook-сервером для уведомлений от ЮKassa
 - **VPN-бэкенд** — [Marzban](https://github.com/Gozargah/Marzban) (панель над Xray). Одна ссылка-подписка отдаёт 4-5 протоколов (Reality на разных портах с разными SNI, gRPC+TLS, Shadowsocks-2022) — клиент переключается на работающий сам
 - **Платежи** — ЮKassa с проверкой подписи вебхука и перепроверкой через их API (чтобы вебхук нельзя было подделать)
-- **Инфра** — Docker Compose, nginx + Let's Encrypt, ноды в Hetzner / Aeza
+- **Инфра** — Docker Compose, nginx + Let's Encrypt. Master — Hetzner DE, endpoint — VDSka NL
 
 Полное продуктовое ТЗ и архитектура — в [`docs/TZ.md`](docs/TZ.md).
 
