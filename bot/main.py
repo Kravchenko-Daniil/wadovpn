@@ -9,8 +9,6 @@ import db
 import handlers
 from config import load_config
 from marzban import MarzbanAPI
-from yookassa_api import YooKassaAPI
-from webhook import start_webhook
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,10 +24,8 @@ async def main():
     db.init_db()
 
     marzban_api = MarzbanAPI(cfg)
-    yookassa_api = YooKassaAPI(cfg)
 
     handlers.marzban = marzban_api
-    handlers.yookassa = yookassa_api
     handlers.cfg = cfg
 
     bot = Bot(
@@ -39,14 +35,10 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(handlers.router)
 
-    webhook_runner = await start_webhook(cfg, bot, marzban_api, yookassa_api)
-
     try:
         await dp.start_polling(bot)
     finally:
-        await webhook_runner.cleanup()
         await marzban_api.close()
-        await yookassa_api.close()
 
 
 if __name__ == "__main__":

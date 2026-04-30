@@ -27,10 +27,10 @@ bot/webhook.py: IP allowlist → GET /payments/{id} (перепроверка) �
 |---|---|
 | DNS `pay.wadovpn.online` резолвится на 46.225.125.127 | `dig +short pay.wadovpn.online` |
 | nginx отвечает на /health | `curl https://pay.wadovpn.online/health` → `ok` |
-| Webhook-сервер внутри бота жив | `ssh vps-master "curl -s http://127.0.0.1:8081/health"` |
+| Webhook-сервер внутри бота жив | `ssh my-hetzner "curl -s http://127.0.0.1:8081/health"` |
 | Ключи ЮKassa валидны | `curl -u shop_id:secret https://api.yookassa.ru/v3/me` → 200 |
-| Активен ли endpoint VDSka | `ssh vps-vdska "docker logs \$(docker ps --filter name=marzban-node -q) --tail 5"` |
-| Логи бота | `ssh vps-master "docker logs wado-bot-wado-bot-1 --tail 50"` |
+| Активен ли endpoint VDSka | `ssh my-vdska "docker logs \$(docker ps --filter name=marzban-node -q) --tail 5"` |
+| Логи бота | `ssh my-hetzner "docker logs wado-bot-wado-bot-1 --tail 50"` |
 | История вебхуков от ЮKassa | ЛК ЮKassa → Интеграция → HTTP-уведомления → История |
 
 ## Тарифы
@@ -110,14 +110,14 @@ bot/webhook.py: IP allowlist → GET /payments/{id} (перепроверка) �
 
 ### Деньги пришли, подписка не продлилась
 
-1. В БД: `ssh vps-master "sudo sqlite3 /opt/wado-bot/data/bot.db 'SELECT * FROM payments WHERE tg_id=...'"` — есть ли запись, какой статус.
+1. В БД: `ssh my-hetzner "sudo sqlite3 /opt/wado-bot/data/bot.db 'SELECT * FROM payments WHERE tg_id=...'"` — есть ли запись, какой статус.
 2. Если запись есть со status=succeeded, но юзер не получил — проверь Marzban (`docker logs marzban-marzban-1`).
 3. Если запись со status=pending — вебхук не дошёл, см. предыдущий пункт.
 4. Ручное продление: `/grant <tg_id> <days>` от админа.
 
 ## Как протестить end-to-end после изменений
 
-1. Ребилд: `ssh vps-master "cd /opt/wado-bot && docker compose up -d --build"`
+1. Ребилд: `ssh my-hetzner "cd /opt/wado-bot && docker compose up -d --build"`
 2. `curl https://pay.wadovpn.online/health` → `ok`
 3. В боте: «Купить подписку» → 99₽ → «💳 Оплатить» → оплата реальной картой (тестовых ключей нет, магазин live-only)
 4. Ждёшь «✅ Оплата получена!» в чате

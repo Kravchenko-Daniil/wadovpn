@@ -11,7 +11,6 @@ import db
 import texts
 import keyboards as kb
 from marzban import MarzbanAPI
-from yookassa_api import YooKassaAPI
 from config import Config, PLANS
 
 log = logging.getLogger(__name__)
@@ -21,7 +20,6 @@ NO_PREVIEW = LinkPreviewOptions(is_disabled=True)
 
 # These are set from main.py at startup
 marzban: MarzbanAPI = None
-yookassa: YooKassaAPI = None
 cfg: Config = None
 
 
@@ -272,7 +270,7 @@ async def on_back(cq: CallbackQuery):
     await cq.answer()
 
 
-# Buy flow (YooKassa)
+# Buy flow (free, no payment)
 @router.callback_query(F.data == "buy")
 async def on_buy(cq: CallbackQuery, state: FSMContext):
     await state.clear()
@@ -290,43 +288,70 @@ async def on_buy_plan(cq: CallbackQuery, state: FSMContext):
     if plan_key not in PLANS:
         await cq.answer("Неизвестный тариф", show_alert=True)
         return
-    await _create_and_send_payment(cq, plan_key, edit=False)
 
-
-@router.callback_query(F.data.startswith("refresh_"))
-async def on_refresh_payment(cq: CallbackQuery):
-    plan_key = cq.data.replace("refresh_", "")
-    if plan_key not in PLANS:
-        await cq.answer("Неизвестный тариф", show_alert=True)
-        return
-    await _create_and_send_payment(cq, plan_key, edit=True)
-
-
-async def _create_and_send_payment(cq: CallbackQuery, plan_key: str, edit: bool):
-    plan = PLANS[plan_key]
     tg_id = cq.from_user.id
-    try:
-        payment = await yookassa.create_payment(tg_id, plan_key)
-    except Exception as e:
-        log.error("create_payment failed: %s", e)
-        await cq.answer("Не удалось создать платёж. Попробуй позже.", show_alert=True)
+    user = db.get_user(tg_id)
+
+    if _is_unlimited(user):
+        await cq.message.edit_text(
+            texts.ALREADY_UNLIMITED,
+            parse_mode="Markdown",
+            reply_markup=kb.trial_activated(),
+        )
+        await cq.answer()
         return
 
-    payment_id = payment["id"]
-    confirm_url = payment["confirmation"]["confirmation_url"]
-    db.add_payment(
-        tg_id=tg_id, amount=plan["price"], currency="RUB", method="yookassa",
-        plan=plan_key, email="", external_id=payment_id,
+    plan = PLANS[plan_key]
+    sub_url, new_expires = await _grant_paid_free(
+        tg_id, cq.from_user.username, plan["months"]
     )
+    await cq.message.edit_text(
+        texts.SUB_ACTIVATED.format(
+            months=plan["months"],
+            expires=new_expires.strftime("%d.%m.%Y"),
+            sub_url=sub_url,
+        ),
+        parse_mode="Markdown",
+        reply_markup=kb.trial_activated(),
+        link_preview_options=NO_PREVIEW,
+    )
+    await cq.answer()
 
-    text = texts.PAY_CREATED.format(label=plan["label"], price=plan["price"])
-    markup = kb.pay_link(confirm_url, plan_key)
-    if edit:
-        await cq.message.edit_text(text, parse_mode="Markdown", reply_markup=markup)
-        await cq.answer("Ссылка обновлена")
+
+async def _grant_paid_free(
+    tg_id: int, tg_username: str | None, months: int
+) -> tuple[str, datetime]:
+    """Выдать/продлить подписку бесплатно на N месяцев. Возвращает (sub_url, new_expires)."""
+    username = _marzban_username(tg_id)
+    user = db.get_user(tg_id)
+
+    now = datetime.utcnow()
+    base = now
+    if user and user.get("expires_at"):
+        try:
+            cur = datetime.fromisoformat(user["expires_at"])
+            if cur > now:
+                base = cur
+        except ValueError:
+            pass
+    new_expires = base + timedelta(days=30 * months)
+    expire_ts = int(new_expires.timestamp())
+
+    existing = await marzban.get_user(username)
+    if existing:
+        mz = await marzban.update_user(username, expire=expire_ts, status="active")
     else:
-        await cq.message.answer(text, parse_mode="Markdown", reply_markup=markup)
-        await cq.answer()
+        mz = await marzban.create_user(username, expire_ts)
+
+    if user:
+        db.update_user(tg_id, role="client", expires_at=new_expires.isoformat())
+    else:
+        db.create_user(
+            tg_id=tg_id, username=tg_username, marzban_username=username,
+            role="client", expires_at=new_expires.isoformat(),
+        )
+
+    return mz.get("subscription_url", ""), new_expires
 
 
 # ── Admin commands ──────────────────────────────────────────────
@@ -464,27 +489,49 @@ async def cmd_invite(msg: Message):
         await msg.answer(texts.NOT_ADMIN)
         return
 
+    parts = msg.text.split(maxsplit=1)
+    note = parts[1] if len(parts) >= 2 else ""
+
+    code = secrets.token_hex(4)
+    db.create_invite(code=code, max_uses=1, created_by=msg.from_user.id, note=note)
+
+    me = await msg.bot.get_me()
+    link = f"https://t.me/{me.username}?start=inv_{code}"
+    await msg.answer(
+        texts.INVITE_CREATED.format(link=link),
+        parse_mode="Markdown",
+        link_preview_options=NO_PREVIEW,
+    )
+
+
+@router.message(Command("trial"))
+async def cmd_trial(msg: Message):
+    if not _is_admin(msg.from_user.id):
+        await msg.answer(texts.NOT_ADMIN)
+        return
+
     parts = msg.text.split(maxsplit=2)
-    max_uses = 1
+    days = 30
     note = ""
     if len(parts) >= 2:
         try:
-            max_uses = int(parts[1])
-            if max_uses < 1:
+            days = int(parts[1])
+            if days < 1:
                 raise ValueError
         except ValueError:
-            await msg.answer(texts.INVITE_USAGE, parse_mode="Markdown")
+            await msg.answer(texts.TRIAL_INVITE_USAGE, parse_mode="Markdown")
             return
     if len(parts) >= 3:
         note = parts[2]
 
     code = secrets.token_hex(4)
-    db.create_invite(code=code, max_uses=max_uses, created_by=msg.from_user.id, note=note)
+    db.create_invite(code=code, max_uses=1, created_by=msg.from_user.id,
+                     note=note, grant_days=days)
 
     me = await msg.bot.get_me()
     link = f"https://t.me/{me.username}?start=inv_{code}"
     await msg.answer(
-        texts.INVITE_CREATED.format(max_uses=max_uses, link=link),
+        texts.TRIAL_CREATED.format(days=days, link=link),
         parse_mode="Markdown",
         link_preview_options=NO_PREVIEW,
     )
@@ -512,24 +559,39 @@ async def cmd_invites(msg: Message):
     )
 
 
-async def _grant_unlimited_friend(tg_id: int, tg_username: str | None) -> str:
-    """Create or upgrade user to unlimited friend. Returns sub_url."""
+async def _grant_friend(tg_id: int, tg_username: str | None,
+                        days: int | None = None) -> tuple[str, str | None]:
+    """Create or upgrade user to friend. If days=None, unlimited.
+    Returns (sub_url, expires_iso_or_None)."""
     username = _marzban_username(tg_id)
+    if days is None:
+        expire_ts = 0
+        expires_iso = None
+    else:
+        expires_dt = datetime.utcnow() + timedelta(days=days)
+        expire_ts = int(expires_dt.timestamp())
+        expires_iso = expires_dt.isoformat()
+
     existing = await marzban.get_user(username)
     if existing:
-        mz = await marzban.update_user(username, expire=0, status="active")
+        mz = await marzban.update_user(username, expire=expire_ts, status="active")
     else:
-        mz = await marzban.create_user(username, 0)
+        mz = await marzban.create_user(username, expire_ts)
 
     user = db.get_user(tg_id)
     if user:
-        db.update_user(tg_id, role="friend", expires_at=None)
+        db.update_user(tg_id, role="friend", expires_at=expires_iso)
     else:
         db.create_user(
             tg_id=tg_id, username=tg_username,
-            marzban_username=username, role="friend", expires_at=None,
+            marzban_username=username, role="friend", expires_at=expires_iso,
         )
-    return mz.get("subscription_url", "")
+    return mz.get("subscription_url", ""), expires_iso
+
+
+async def _grant_unlimited_friend(tg_id: int, tg_username: str | None) -> str:
+    sub_url, _ = await _grant_friend(tg_id, tg_username, days=None)
+    return sub_url
 
 
 async def _activate_invite(msg: Message, code: str):
@@ -554,11 +616,22 @@ async def _activate_invite(msg: Message, code: str):
         await msg.answer(texts.INVITE_ALREADY_HAS_SUB)
         return
 
-    sub_url = await _grant_unlimited_friend(tg_id, msg.from_user.username)
+    grant_days = invite.get("grant_days")
+    sub_url, expires_iso = await _grant_friend(
+        tg_id, msg.from_user.username, days=grant_days,
+    )
     db.increment_invite_use(code)
 
+    if grant_days:
+        text = texts.INVITE_ACTIVATED_TRIAL.format(
+            days=grant_days,
+            status_line=_status_line(expires_iso),
+            sub_url=sub_url,
+        )
+    else:
+        text = texts.INVITE_ACTIVATED.format(sub_url=sub_url)
     await msg.answer(
-        texts.INVITE_ACTIVATED.format(sub_url=sub_url),
+        text,
         parse_mode="Markdown",
         reply_markup=kb.trial_activated(),
         link_preview_options=NO_PREVIEW,

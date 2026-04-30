@@ -27,40 +27,19 @@ def init_db():
             )
         """)
         c.execute("""
-            CREATE TABLE IF NOT EXISTS payments (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                tg_id           INTEGER,
-                amount          REAL,
-                currency        TEXT,
-                method          TEXT,
-                status          TEXT DEFAULT 'pending',
-                created_at      TEXT DEFAULT (datetime('now')),
-                payload         TEXT,
-                external_id     TEXT UNIQUE,
-                plan            TEXT,
-                email           TEXT
-            )
-        """)
-        # Migrate legacy tables
-        cols = {row[1] for row in c.execute("PRAGMA table_info(payments)").fetchall()}
-        for col, decl in [
-            ("external_id", "TEXT"),
-            ("plan", "TEXT"),
-            ("email", "TEXT"),
-        ]:
-            if col not in cols:
-                c.execute(f"ALTER TABLE payments ADD COLUMN {col} {decl}")
-
-        c.execute("""
             CREATE TABLE IF NOT EXISTS invites (
                 code         TEXT PRIMARY KEY,
                 max_uses     INTEGER DEFAULT 1,
                 uses_count   INTEGER DEFAULT 0,
                 created_by   INTEGER,
                 created_at   TEXT DEFAULT (datetime('now')),
-                note         TEXT
+                note         TEXT,
+                grant_days   INTEGER
             )
         """)
+        inv_cols = {row[1] for row in c.execute("PRAGMA table_info(invites)").fetchall()}
+        if "grant_days" not in inv_cols:
+            c.execute("ALTER TABLE invites ADD COLUMN grant_days INTEGER")
 
         c.execute("""
             CREATE TABLE IF NOT EXISTS whitelist (
@@ -116,35 +95,13 @@ def get_active_users_count() -> int:
         return row["cnt"]
 
 
-def add_payment(tg_id: int, amount: float, currency: str,
-                method: str, plan: str, email: str,
-                external_id: str, payload: str = "") -> int:
-    with _conn() as c:
-        cur = c.execute("""
-            INSERT INTO payments (tg_id, amount, currency, method, plan, email, external_id, payload)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (tg_id, amount, currency, method, plan, email, external_id, payload))
-        return cur.lastrowid
-
-
-def update_payment(payment_id: int, status: str):
-    with _conn() as c:
-        c.execute("UPDATE payments SET status = ? WHERE id = ?", (status, payment_id))
-
-
-def update_payment_by_external(external_id: str, status: str):
+def create_invite(code: str, max_uses: int, created_by: int, note: str = "",
+                  grant_days: int | None = None) -> None:
     with _conn() as c:
         c.execute(
-            "UPDATE payments SET status = ? WHERE external_id = ?",
-            (status, external_id),
-        )
-
-
-def create_invite(code: str, max_uses: int, created_by: int, note: str = "") -> None:
-    with _conn() as c:
-        c.execute(
-            "INSERT INTO invites (code, max_uses, created_by, note) VALUES (?, ?, ?, ?)",
-            (code, max_uses, created_by, note),
+            "INSERT INTO invites (code, max_uses, created_by, note, grant_days) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (code, max_uses, created_by, note, grant_days),
         )
 
 
@@ -207,10 +164,3 @@ def get_all_whitelist() -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def get_email(tg_id: int) -> str | None:
-    with _conn() as c:
-        row = c.execute(
-            "SELECT email FROM payments WHERE tg_id = ? AND email IS NOT NULL "
-            "ORDER BY id DESC LIMIT 1", (tg_id,)
-        ).fetchone()
-        return row["email"] if row else None

@@ -11,10 +11,8 @@ def main_menu(
         buttons.append([InlineKeyboardButton(text="Моя подписка", callback_data="my_sub")])
     elif trial_available:
         buttons.append([InlineKeyboardButton(text="✨ Попробовать бесплатно", callback_data="trial")])
-    if is_unlimited:
-        buttons.append([InlineKeyboardButton(text="💝 Поддержать проект", callback_data="buy")])
-    else:
-        buttons.append([InlineKeyboardButton(text="Купить подписку", callback_data="buy")])
+    if not is_unlimited:
+        buttons.append([InlineKeyboardButton(text="🎁 Получить доступ бесплатно", callback_data="buy")])
     buttons.append([
         InlineKeyboardButton(text="Инструкция", callback_data="install"),
         InlineKeyboardButton(text="Помощь", callback_data="help"),
@@ -73,7 +71,7 @@ def trial_activated() -> InlineKeyboardMarkup:
 
 def sub_expired_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Купить подписку", callback_data="buy")],
+        [InlineKeyboardButton(text="🎁 Продлить бесплатно", callback_data="buy")],
         [InlineKeyboardButton(text="Назад", callback_data="back_main")],
     ])
 
@@ -83,22 +81,8 @@ def buy_menu() -> InlineKeyboardMarkup:
     rows = []
     for key, plan in PLANS.items():
         rows.append([InlineKeyboardButton(
-            text=f"{plan['label']} — {plan['price']} ₽",
+            text=f"🎁 {plan['label']} — бесплатно",
             callback_data=f"buy_{key}",
         )])
     rows.append([InlineKeyboardButton(text="Назад", callback_data="back_main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
-def pay_link(url: str, plan_key: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💳 Оплатить", url=url)],
-        [InlineKeyboardButton(text="🔄 Новая ссылка", callback_data=f"refresh_{plan_key}")],
-        [InlineKeyboardButton(text="Назад", callback_data="back_main")],
-    ])
-
-
-def cancel_email() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Отмена", callback_data="back_main")],
-    ])
