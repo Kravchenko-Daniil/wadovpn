@@ -85,20 +85,16 @@ _PLATFORM_CLIENTS = {
 
 
 def _import_block(sub_url: str, platform: str = "all") -> str:
-    """HTML-блок «📲 Открыть в …» — ссылки с custom-scheme deep-link'ами для каждого клиента."""
+    """HTML-блок «📲 Открыть в …». Telegram не пускает custom schemes (happ:// и т.п.)
+    в HTML-ссылках, поэтому каждая ссылка ведёт на наш HTTPS-редиректор
+    (см. bot/redirect.py), который уже редиректит браузер юзера в нужную схему."""
     if not sub_url:
         return ""
-    enc = quote(sub_url, safe="")
-    schemes = {
-        "happ":         f"happ://add/{enc}",
-        "karing":       f"karing://install-config?url={enc}&name=Wado",
-        "shadowrocket": f"sub://{sub_url}",
-        "v2rayng":      f"v2rayng://install-sub/?url={enc}%23Wado",
-        "hiddify":      f"hiddify://import/{sub_url}#Wado",
-    }
+    sub_enc = quote(sub_url, safe="")
+    base = cfg.redirect_base_url.rstrip("/")
     items = _PLATFORM_CLIENTS.get(platform, _PLATFORM_CLIENTS["all"])
     links = " · ".join(
-        f'<a href="{html.escape(schemes[key], quote=True)}">{html.escape(name)}</a>'
+        f'<a href="{html.escape(f"{base}/open?app={key}&sub={sub_enc}", quote=True)}">{html.escape(name)}</a>'
         for name, key in items
     )
     return f"{texts.IMPORT_BLOCK_HEADER}\n{links}"

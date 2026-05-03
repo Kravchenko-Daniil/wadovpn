@@ -7,6 +7,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 import db
 import handlers
+import redirect
 from config import load_config
 from marzban import MarzbanAPI
 
@@ -35,9 +36,12 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(handlers.router)
 
+    redirect_runner = await redirect.start(cfg.redirect_host, cfg.redirect_port)
+
     try:
         await dp.start_polling(bot)
     finally:
+        await redirect_runner.cleanup()
         await marzban_api.close()
 
 
