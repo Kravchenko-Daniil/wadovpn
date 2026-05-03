@@ -139,7 +139,7 @@ async def on_trial(cq: CallbackQuery):
         mz = await marzban.create_user(username, expire_ts)
     except Exception as e:
         log.error("Failed to create trial user: %s", e)
-        await cq.answer("Ошибка, попробуй позже.", show_alert=True)
+        await cq.answer("Ошибка, попробуйте позже.", show_alert=True)
         return
 
     db.create_user(
