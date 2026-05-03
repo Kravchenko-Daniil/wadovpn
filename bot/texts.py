@@ -1,11 +1,11 @@
 WELCOME = (
-    "**Wado VPN**\n\n"
+    "<b>Wado VPN</b>\n\n"
     "Telegram, YouTube, ChatGPT, Instagram — "
     "всё работает без ограничений."
 )
 
 WELCOME_BACK = (
-    "**Wado VPN**\n\n"
+    "<b>Wado VPN</b>\n\n"
     "{status_line}\n"
     "Трафик: {used} / {limit}"
 )
@@ -15,15 +15,16 @@ TRIAL_ALREADY_USED = "Пробный период уже использован.
 TRIAL_ACTIVATED = (
     "✅ Пробный период — {days} дня\n\n"
     "Ваша ссылка:\n"
-    "`{sub_url}`\n\n"
-    "Скопируйте и откройте **Инструкция**."
+    "<code>{sub_url}</code>\n\n"
+    "{import_block}"
 )
 
 SUB_INFO = (
     "{status_line}\n"
     "Трафик: {used} / {limit}\n\n"
     "Ссылка:\n"
-    "`{sub_url}`"
+    "<code>{sub_url}</code>\n\n"
+    "{import_block}"
 )
 
 SUB_EXPIRED = "Подписка истекла. Можно бесплатно продлить кнопкой ниже 👇"
@@ -80,82 +81,86 @@ NO_SUB_WITH_TRIAL = (
 )
 
 HELP_TEXT = (
-    "**Не подключается?**\n"
+    "<b>Не подключается?</b>\n"
     "Попробуйте другое приложение.\n\n"
-    "**Медленно?**\n"
+    "<b>Медленно?</b>\n"
     "Смените протокол в настройках.\n\n"
-    "**Не помогло?**\n"
+    "<b>Не помогло?</b>\n"
     "Напишите админу."
 )
 
 BUY_CHOOSE = (
-    "🎁 **Доступ бесплатно**\n\n"
+    "🎁 <b>Доступ бесплатно</b>\n\n"
     "Выберите, на сколько включить — оплата не нужна, ничего списывать не будем."
 )
 
 SUB_ACTIVATED = (
-    "✅ **Доступ открыт!**\n\n"
+    "✅ <b>Доступ открыт!</b>\n\n"
     "Подписка на {months} мес.\n"
-    "Активна до **{expires}**\n\n"
-    "Ваша ссылка:\n`{sub_url}`"
+    "Активна до <b>{expires}</b>\n\n"
+    "Ваша ссылка:\n<code>{sub_url}</code>\n\n"
+    "{import_block}"
 )
 
 ALREADY_UNLIMITED = (
-    "💝 **У вас уже бессрочный доступ.**\n\n"
+    "💝 <b>У вас уже бессрочный доступ.</b>\n\n"
     "Дополнительная подписка не нужна."
 )
 
 BUY_CHOOSE_DONATION = (
-    "💝 **У вас бессрочный доступ.**\n\n"
+    "💝 <b>У вас бессрочный доступ.</b>\n\n"
     "Доп. подписка не нужна — выбирайте тариф, только если хочется тыкнуть."
 )
 
+# Импорт-блок (HTML, добавляется в конец сообщений с {sub_url})
+IMPORT_BLOCK_HEADER = "📲 Открыть подписку прямо в приложении (после установки):"
+
 # Admin
-GRANT_OK = "Доступ выдан: {username}\nСрок: {days} дней\nSub: `{sub_url}`"
-GRANT_USAGE = "Формат: /grant <tg_id> <days>"
+GRANT_OK = "Доступ выдан: {username}\nСрок: {days} дней\nSub: <code>{sub_url}</code>"
+GRANT_USAGE = "Формат: /grant &lt;tg_id&gt; &lt;days&gt;"
 
 INVITE_CREATED = (
     "🎁 Инвайт создан\n\n"
     "Бессрочный доступ для одного человека.\n\n"
     "Ссылка:\n"
-    "`{link}`\n\n"
+    "<code>{link}</code>\n\n"
     "Перешлите её — человек жмёт, бот сам всё настроит."
 )
 INVITE_USAGE = (
     "Формат: /invite [подпись]\n\n"
     "Создаёт бессрочный инвайт на одного человека.\n"
     "Примеры:\n"
-    "`/invite`\n"
-    "`/invite мама`"
+    "<code>/invite</code>\n"
+    "<code>/invite мама</code>"
 )
 INVITE_ACTIVATED = (
     "🎉 Вам открыли доступ!\n\n"
     "Подписка бессрочная.\n\n"
     "Ваша ссылка:\n"
-    "`{sub_url}`\n\n"
-    "Скопируйте и откройте **Инструкция**."
+    "<code>{sub_url}</code>\n\n"
+    "{import_block}"
 )
 TRIAL_CREATED = (
     "🎟 Триал-инвайт создан\n\n"
     "Доступ на {days} дней для одного человека.\n\n"
     "Ссылка:\n"
-    "`{link}`\n\n"
+    "<code>{link}</code>\n\n"
     "Перешлите её — человек жмёт, бот сам всё настроит."
 )
 TRIAL_INVITE_USAGE = (
     "Формат: /trial [дни] [подпись]\n\n"
     "Создаёт инвайт с доступом на N дней (по умолчанию 30).\n"
     "Примеры:\n"
-    "`/trial` — 30 дней\n"
-    "`/trial 7` — 7 дней\n"
-    "`/trial 14 друг` — 14 дней с подписью"
+    "<code>/trial</code> — 30 дней\n"
+    "<code>/trial 7</code> — 7 дней\n"
+    "<code>/trial 14 друг</code> — 14 дней с подписью"
 )
 INVITE_ACTIVATED_TRIAL = (
     "🎉 Вам открыли доступ на {days} дней!\n\n"
     "{status_line}.\n\n"
     "Ваша ссылка:\n"
-    "`{sub_url}`\n\n"
-    "Скопируйте и откройте **Инструкция**."
+    "<code>{sub_url}</code>\n\n"
+    "{import_block}"
 )
 INVITE_INVALID = "Инвайт не найден или уже использован."
 INVITE_EXHAUSTED = "У этого инвайта закончились активации."
@@ -163,30 +168,30 @@ INVITE_ALREADY_HAS_SUB = (
     "У вас уже есть активная подписка — инвайт не нужен 🙂"
 )
 INVITES_EMPTY = "Нет активных инвайтов."
-INVITES_HEADER = "**Инвайты:**\n\n"
+INVITES_HEADER = "<b>Инвайты:</b>\n\n"
 
 WHITELIST_USAGE = (
     "Формат:\n"
-    "`/whitelist add @user1 @user2 ...` — добавить (можно пачкой)\n"
-    "`/whitelist del @user1 @user2 ...` — удалить\n"
-    "`/whitelist` — список"
+    "<code>/whitelist add @user1 @user2 ...</code> — добавить (можно пачкой)\n"
+    "<code>/whitelist del @user1 @user2 ...</code> — удалить\n"
+    "<code>/whitelist</code> — список"
 )
-WHITELIST_ADDED = "✅ `@{username}` добавлен в whitelist. При первом `/start` получит бессрочный доступ."
-WHITELIST_EXISTS = "`@{username}` уже в whitelist."
-WHITELIST_REMOVED = "🗑 `@{username}` удалён из whitelist."
-WHITELIST_NOT_FOUND = "`@{username}` не найден в whitelist."
+WHITELIST_ADDED = "✅ <code>@{username}</code> добавлен в whitelist. При первом /start получит бессрочный доступ."
+WHITELIST_EXISTS = "<code>@{username}</code> уже в whitelist."
+WHITELIST_REMOVED = "🗑 <code>@{username}</code> удалён из whitelist."
+WHITELIST_NOT_FOUND = "<code>@{username}</code> не найден в whitelist."
 WHITELIST_EMPTY = "Whitelist пуст."
-WHITELIST_HEADER = "**Whitelist:**\n\n"
+WHITELIST_HEADER = "<b>Whitelist:</b>\n\n"
 
 WHITELIST_ACTIVATED = (
     "🎁 Здравствуйте! Вы в списке друзей — даю вам бессрочный доступ.\n\n"
     "Ваша ссылка:\n"
-    "`{sub_url}`\n\n"
-    "Скопируйте и откройте **Инструкция**."
+    "<code>{sub_url}</code>\n\n"
+    "{import_block}"
 )
 
 STATS_TEXT = (
-    "**Статистика:**\n\n"
+    "<b>Статистика:</b>\n\n"
     "Всего юзеров: {total}\n"
     "Активных: {active}\n"
     "Trial: {trial}\n"

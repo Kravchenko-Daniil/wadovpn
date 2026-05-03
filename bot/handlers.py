@@ -1,6 +1,8 @@
+import html
 import logging
 import secrets
 from datetime import datetime, timedelta
+from urllib.parse import quote
 
 from aiogram import Router, F
 from aiogram.filters import Command, CommandObject
@@ -70,6 +72,38 @@ def _status_text(status: str) -> str:
     }.get(status, status)
 
 
+# Платформо-специфичные deep-link для импорта подписки в клиенты.
+# Форматы verified в research May 2026, см. notes/.
+_PLATFORM_CLIENTS = {
+    "android": [("v2rayNG", "v2rayng"), ("Hiddify", "hiddify")],
+    "ios":     [("Happ", "happ"), ("Karing", "karing"), ("Shadowrocket", "shadowrocket")],
+    "windows": [("Hiddify", "hiddify")],
+    "macos":   [("Hiddify", "hiddify")],
+    "all":     [("Happ", "happ"), ("Karing", "karing"), ("Hiddify", "hiddify"),
+                ("v2rayNG (Android)", "v2rayng"), ("Shadowrocket (iOS)", "shadowrocket")],
+}
+
+
+def _import_block(sub_url: str, platform: str = "all") -> str:
+    """HTML-блок «📲 Открыть в …» — ссылки с custom-scheme deep-link'ами для каждого клиента."""
+    if not sub_url:
+        return ""
+    enc = quote(sub_url, safe="")
+    schemes = {
+        "happ":         f"happ://add/{enc}",
+        "karing":       f"karing://install-config?url={enc}&name=Wado",
+        "shadowrocket": f"sub://{sub_url}",
+        "v2rayng":      f"v2rayng://install-sub/?url={enc}%23Wado",
+        "hiddify":      f"hiddify://import/{sub_url}#Wado",
+    }
+    items = _PLATFORM_CLIENTS.get(platform, _PLATFORM_CLIENTS["all"])
+    links = " · ".join(
+        f'<a href="{html.escape(schemes[key], quote=True)}">{html.escape(name)}</a>'
+        for name, key in items
+    )
+    return f"{texts.IMPORT_BLOCK_HEADER}\n{links}"
+
+
 # /start
 @router.message(Command("start"))
 async def cmd_start(msg: Message, command: CommandObject):
@@ -92,8 +126,10 @@ async def cmd_start(msg: Message, command: CommandObject):
         if not has_active_paid:
             sub_url = await _grant_unlimited_friend(tg_id, tg_username)
             await msg.answer(
-                texts.WHITELIST_ACTIVATED.format(sub_url=sub_url),
-                parse_mode="Markdown",
+                texts.WHITELIST_ACTIVATED.format(
+                    sub_url=sub_url, import_block=_import_block(sub_url),
+                ),
+                parse_mode="HTML",
                 reply_markup=kb.trial_activated(),
                 link_preview_options=NO_PREVIEW,
             )
@@ -107,7 +143,7 @@ async def cmd_start(msg: Message, command: CommandObject):
                 trial_available = not bool(user.get("trial_used"))
                 await msg.answer(
                     texts.WELCOME + "\n\n" + texts.SUB_EXPIRED,
-                    parse_mode="Markdown",
+                    parse_mode="HTML",
                     reply_markup=kb.main_menu(has_sub=False, trial_available=trial_available),
                 )
                 return
@@ -117,11 +153,11 @@ async def cmd_start(msg: Message, command: CommandObject):
                 limit=_format_bytes(mz.get("data_limit")),
             )
             await msg.answer(
-                text, parse_mode="Markdown",
+                text, parse_mode="HTML",
                 reply_markup=kb.main_menu(has_sub=True, is_unlimited=_is_unlimited(user)),
             )
             return
-    await msg.answer(texts.WELCOME, parse_mode="Markdown", reply_markup=kb.main_menu(has_sub=False))
+    await msg.answer(texts.WELCOME, parse_mode="HTML", reply_markup=kb.main_menu(has_sub=False))
 
 
 # Trial
@@ -155,8 +191,11 @@ async def on_trial(cq: CallbackQuery):
 
     sub_url = mz.get("subscription_url", "")
     await cq.message.edit_text(
-        texts.TRIAL_ACTIVATED.format(days=cfg.trial_days, sub_url=sub_url),
-        parse_mode="Markdown",
+        texts.TRIAL_ACTIVATED.format(
+            days=cfg.trial_days, sub_url=sub_url,
+            import_block=_import_block(sub_url),
+        ),
+        parse_mode="HTML",
         reply_markup=kb.trial_activated(),
         link_preview_options=NO_PREVIEW,
     )
@@ -196,14 +235,16 @@ async def on_my_sub(cq: CallbackQuery):
         await cq.answer()
         return
 
+    sub_url = mz.get("subscription_url", "")
     text = texts.SUB_INFO.format(
         status_line=_status_line(user["expires_at"]),
         used=_format_bytes(mz.get("used_traffic", 0)),
         limit=_format_bytes(mz.get("data_limit")),
-        sub_url=mz.get("subscription_url", ""),
+        sub_url=sub_url,
+        import_block=_import_block(sub_url),
     )
     await cq.message.edit_text(
-        text, parse_mode="Markdown", reply_markup=kb.sub_info_kb(),
+        text, parse_mode="HTML", reply_markup=kb.sub_info_kb(),
         link_preview_options=NO_PREVIEW,
     )
     await cq.answer()
@@ -226,14 +267,16 @@ async def _send_my_sub(msg: Message):
         await msg.answer(texts.SUB_EXPIRED, reply_markup=kb.sub_expired_kb())
         return
 
+    sub_url = mz.get("subscription_url", "")
     text = texts.SUB_INFO.format(
         status_line=_status_line(user["expires_at"]),
         used=_format_bytes(mz.get("used_traffic", 0)),
         limit=_format_bytes(mz.get("data_limit")),
-        sub_url=mz.get("subscription_url", ""),
+        sub_url=sub_url,
+        import_block=_import_block(sub_url),
     )
     await msg.answer(
-        text, parse_mode="Markdown", reply_markup=kb.sub_info_kb(),
+        text, parse_mode="HTML", reply_markup=kb.sub_info_kb(),
         link_preview_options=NO_PREVIEW,
     )
 
@@ -254,6 +297,18 @@ async def on_install_platform(cq: CallbackQuery):
         "windows": texts.INSTALL_WINDOWS,
         "macos": texts.INSTALL_MACOS,
     }.get(platform, "")
+
+    # Если у юзера есть активная подписка — приклеиваем блок import-ссылок
+    # под инструкцией (с deep-link'ами для клиентов конкретно этой платформы).
+    user = db.get_user(cq.from_user.id)
+    if user and user.get("marzban_username"):
+        mz = await marzban.get_user(user["marzban_username"])
+        if mz and mz["status"] not in ("expired", "limited", "disabled"):
+            sub_url = mz.get("subscription_url", "")
+            block = _import_block(sub_url, platform)
+            if block:
+                text = f"{text}\n\n{block}"
+
     await cq.message.edit_text(
         text, parse_mode="HTML", reply_markup=kb.back_install(),
         link_preview_options=NO_PREVIEW,
@@ -265,7 +320,7 @@ async def on_install_platform(cq: CallbackQuery):
 @router.callback_query(F.data == "help")
 async def on_help(cq: CallbackQuery):
     await cq.message.edit_text(
-        texts.HELP_TEXT, parse_mode="Markdown", reply_markup=kb.help_kb()
+        texts.HELP_TEXT, parse_mode="HTML", reply_markup=kb.help_kb()
     )
     await cq.answer()
 
@@ -283,7 +338,7 @@ async def on_back(cq: CallbackQuery):
                 limit=_format_bytes(mz.get("data_limit")),
             )
             await cq.message.edit_text(
-                text, parse_mode="Markdown",
+                text, parse_mode="HTML",
                 reply_markup=kb.main_menu(has_sub=True, is_unlimited=_is_unlimited(user)),
             )
             await cq.answer()
@@ -291,13 +346,13 @@ async def on_back(cq: CallbackQuery):
         # Sub exists but expired/limited/disabled
         trial_available = not bool(user.get("trial_used"))
         await cq.message.edit_text(
-            texts.WELCOME, parse_mode="Markdown",
+            texts.WELCOME, parse_mode="HTML",
             reply_markup=kb.main_menu(has_sub=False, trial_available=trial_available),
         )
         await cq.answer()
         return
     await cq.message.edit_text(
-        texts.WELCOME, parse_mode="Markdown", reply_markup=kb.main_menu(has_sub=False)
+        texts.WELCOME, parse_mode="HTML", reply_markup=kb.main_menu(has_sub=False)
     )
     await cq.answer()
 
@@ -309,7 +364,7 @@ async def on_buy(cq: CallbackQuery, state: FSMContext):
     user = db.get_user(cq.from_user.id)
     text = texts.BUY_CHOOSE_DONATION if _is_unlimited(user) else texts.BUY_CHOOSE
     await cq.message.edit_text(
-        text, parse_mode="Markdown", reply_markup=kb.buy_menu()
+        text, parse_mode="HTML", reply_markup=kb.buy_menu()
     )
     await cq.answer()
 
@@ -327,7 +382,7 @@ async def on_buy_plan(cq: CallbackQuery, state: FSMContext):
     if _is_unlimited(user):
         await cq.message.edit_text(
             texts.ALREADY_UNLIMITED,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=kb.trial_activated(),
         )
         await cq.answer()
@@ -342,8 +397,9 @@ async def on_buy_plan(cq: CallbackQuery, state: FSMContext):
             months=plan["months"],
             expires=new_expires.strftime("%d.%m.%Y"),
             sub_url=sub_url,
+            import_block=_import_block(sub_url),
         ),
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=kb.trial_activated(),
         link_preview_options=NO_PREVIEW,
     )
@@ -396,14 +452,14 @@ async def cmd_grant(msg: Message):
 
     parts = msg.text.split()
     if len(parts) < 3:
-        await msg.answer(texts.GRANT_USAGE)
+        await msg.answer(texts.GRANT_USAGE, parse_mode="HTML")
         return
 
     try:
         target_tg_id = int(parts[1])
         days = int(parts[2])
     except ValueError:
-        await msg.answer(texts.GRANT_USAGE)
+        await msg.answer(texts.GRANT_USAGE, parse_mode="HTML")
         return
 
     username = _marzban_username(target_tg_id)
@@ -433,7 +489,7 @@ async def cmd_grant(msg: Message):
     sub_url = mz.get("subscription_url", "")
     await msg.answer(
         texts.GRANT_OK.format(username=username, days=days, sub_url=sub_url),
-        parse_mode="Markdown",
+        parse_mode="HTML",
         link_preview_options=NO_PREVIEW,
     )
 
@@ -446,13 +502,13 @@ async def cmd_block(msg: Message):
 
     parts = msg.text.split()
     if len(parts) < 2:
-        await msg.answer("Формат: /block <tg_id>")
+        await msg.answer("Формат: /block &lt;tg_id&gt;", parse_mode="HTML")
         return
 
     try:
         target_tg_id = int(parts[1])
     except ValueError:
-        await msg.answer("Формат: /block <tg_id>")
+        await msg.answer("Формат: /block &lt;tg_id&gt;", parse_mode="HTML")
         return
 
     user = db.get_user(target_tg_id)
@@ -483,7 +539,7 @@ async def cmd_stats(msg: Message):
         texts.STATS_TEXT.format(
             total=total, active=active, trial=trial, friend=friend, client=client
         ),
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
 
 
@@ -504,12 +560,12 @@ async def cmd_users(msg: Message):
             u["expires_at"] and u["expires_at"] < datetime.utcnow().isoformat()
         ) else "active"
         lines.append(
-            f"`{u['tg_id']}` | {u['role']} | {status} | {_format_expires(u['expires_at'])}"
+            f"<code>{u['tg_id']}</code> | {u['role']} | {status} | {_format_expires(u['expires_at'])}"
         )
 
     await msg.answer(
-        "**Пользователи** (последние 20):\n\n" + "\n".join(lines),
-        parse_mode="Markdown",
+        "<b>Пользователи</b> (последние 20):\n\n" + "\n".join(lines),
+        parse_mode="HTML",
     )
 
 
@@ -531,7 +587,7 @@ async def cmd_invite(msg: Message):
     link = f"https://t.me/{me.username}?start=inv_{code}"
     await msg.answer(
         texts.INVITE_CREATED.format(link=link),
-        parse_mode="Markdown",
+        parse_mode="HTML",
         link_preview_options=NO_PREVIEW,
     )
 
@@ -551,7 +607,7 @@ async def cmd_trial(msg: Message):
             if days < 1:
                 raise ValueError
         except ValueError:
-            await msg.answer(texts.TRIAL_INVITE_USAGE, parse_mode="Markdown")
+            await msg.answer(texts.TRIAL_INVITE_USAGE, parse_mode="HTML")
             return
     if len(parts) >= 3:
         note = parts[2]
@@ -564,7 +620,7 @@ async def cmd_trial(msg: Message):
     link = f"https://t.me/{me.username}?start=inv_{code}"
     await msg.answer(
         texts.TRIAL_CREATED.format(days=days, link=link),
-        parse_mode="Markdown",
+        parse_mode="HTML",
         link_preview_options=NO_PREVIEW,
     )
 
@@ -582,12 +638,12 @@ async def cmd_invites(msg: Message):
 
     lines = []
     for inv in invites[:30]:
-        note = f" — {inv['note']}" if inv.get("note") else ""
+        note = f" — {html.escape(inv['note'])}" if inv.get("note") else ""
         lines.append(
-            f"`{inv['code']}` | {inv['uses_count']}/{inv['max_uses']}{note}"
+            f"<code>{inv['code']}</code> | {inv['uses_count']}/{inv['max_uses']}{note}"
         )
     await msg.answer(
-        texts.INVITES_HEADER + "\n".join(lines), parse_mode="Markdown"
+        texts.INVITES_HEADER + "\n".join(lines), parse_mode="HTML"
     )
 
 
@@ -659,12 +715,15 @@ async def _activate_invite(msg: Message, code: str):
             days=grant_days,
             status_line=_status_line(expires_iso),
             sub_url=sub_url,
+            import_block=_import_block(sub_url),
         )
     else:
-        text = texts.INVITE_ACTIVATED.format(sub_url=sub_url)
+        text = texts.INVITE_ACTIVATED.format(
+            sub_url=sub_url, import_block=_import_block(sub_url),
+        )
     await msg.answer(
         text,
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=kb.trial_activated(),
         link_preview_options=NO_PREVIEW,
     )
@@ -684,20 +743,20 @@ async def cmd_whitelist(msg: Message):
         if not rows:
             await msg.answer(texts.WHITELIST_EMPTY)
             return
-        lines = [f"• `@{r['username']}`" for r in rows]
+        lines = [f"• <code>@{r['username']}</code>" for r in rows]
         await msg.answer(
-            texts.WHITELIST_HEADER + "\n".join(lines), parse_mode="Markdown"
+            texts.WHITELIST_HEADER + "\n".join(lines), parse_mode="HTML"
         )
         return
 
     if len(parts) < 3:
-        await msg.answer(texts.WHITELIST_USAGE, parse_mode="Markdown")
+        await msg.answer(texts.WHITELIST_USAGE, parse_mode="HTML")
         return
 
     action = parts[1].lower()
     usernames = [p.strip().lstrip("@").lower() for p in parts[2:] if p.strip().lstrip("@")]
     if not usernames or action not in ("add", "del"):
-        await msg.answer(texts.WHITELIST_USAGE, parse_mode="Markdown")
+        await msg.answer(texts.WHITELIST_USAGE, parse_mode="HTML")
         return
 
     added, existed, removed, not_found = [], [], [], []
@@ -709,11 +768,11 @@ async def cmd_whitelist(msg: Message):
 
     lines = []
     if added:
-        lines.append("✅ Добавлены: " + ", ".join(f"`@{u}`" for u in added))
+        lines.append("✅ Добавлены: " + ", ".join(f"<code>@{u}</code>" for u in added))
     if existed:
-        lines.append("ℹ️ Уже были: " + ", ".join(f"`@{u}`" for u in existed))
+        lines.append("ℹ️ Уже были: " + ", ".join(f"<code>@{u}</code>" for u in existed))
     if removed:
-        lines.append("🗑 Удалены: " + ", ".join(f"`@{u}`" for u in removed))
+        lines.append("🗑 Удалены: " + ", ".join(f"<code>@{u}</code>" for u in removed))
     if not_found:
-        lines.append("❓ Не найдены: " + ", ".join(f"`@{u}`" for u in not_found))
-    await msg.answer("\n".join(lines), parse_mode="Markdown")
+        lines.append("❓ Не найдены: " + ", ".join(f"<code>@{u}</code>" for u in not_found))
+    await msg.answer("\n".join(lines), parse_mode="HTML")
