@@ -42,7 +42,7 @@ def load_config() -> Config:
         marzban_user=os.environ.get("MARZBAN_USER", "admin"),
         marzban_pass=os.environ.get("MARZBAN_PASS", ""),
         redirect_host=os.environ.get("REDIRECT_HOST", "127.0.0.1"),
-        redirect_port=int(os.environ.get("REDIRECT_PORT", "8081")),
+        redirect_port=int(os.environ.get("REDIRECT_PORT", "8091")),
         redirect_base_url=os.environ.get("REDIRECT_BASE_URL", "https://pay.wadovpn.online"),
         trial_days=int(os.environ.get("TRIAL_DAYS", "3")),
         default_data_limit_gb=int(os.environ.get("DATA_LIMIT_GB", "50")),
