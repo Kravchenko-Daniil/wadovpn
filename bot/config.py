@@ -9,6 +9,13 @@ PLANS = {
     "12m": {"months": 12, "label": "12 месяцев"},
 }
 
+TG_PROXY_URL = (
+    "https://t.me/proxy"
+    "?server=168.222.252.53"
+    "&port=8443"
+    "&secret=7qe2cCZ6tuA3P7WpRnJV3w53d3cubWljcm9zb2Z0LmNvbQ"
+)
+
 
 @dataclass
 class Config:

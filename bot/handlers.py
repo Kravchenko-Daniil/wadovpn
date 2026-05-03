@@ -13,7 +13,7 @@ import db
 import texts
 import keyboards as kb
 from marzban import MarzbanAPI
-from config import Config, PLANS
+from config import Config, PLANS, TG_PROXY_URL
 
 log = logging.getLogger(__name__)
 router = Router()
@@ -307,6 +307,17 @@ async def on_install_platform(cq: CallbackQuery):
 
     await cq.message.edit_text(
         text, parse_mode="HTML", reply_markup=kb.back_install(),
+        link_preview_options=NO_PREVIEW,
+    )
+    await cq.answer()
+
+
+# Telegram MTProto proxy
+@router.callback_query(F.data == "tg_proxy")
+async def on_tg_proxy(cq: CallbackQuery):
+    await cq.message.edit_text(
+        texts.TG_PROXY_TEXT, parse_mode="HTML",
+        reply_markup=kb.tg_proxy_kb(TG_PROXY_URL),
         link_preview_options=NO_PREVIEW,
     )
     await cq.answer()
