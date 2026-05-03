@@ -41,8 +41,11 @@ INSTALL_ANDROID = (
 
 INSTALL_IOS = (
     "**iOS**\n\n"
-    "1. Установи [Streisand](https://apps.apple.com/app/streisand/id6450534064) "
-    "или [Hiddify](https://apps.apple.com/app/hiddify-proxy-vpn/id6596777532)\n"
+    "Все три приложения работают в российском App Store:\n"
+    "• [Happ Proxy Utility Plus](https://apps.apple.com/ru/app/happ-proxy-utility-plus/id6746188973) — бесплатно, рекомендую\n"
+    "• [Karing](https://apps.apple.com/ru/app/karing/id6472431552) — бесплатно, запасной вариант\n"
+    "• [Shadowrocket](https://apps.apple.com/ru/app/shadowrocket/id932747118) — 249 ₽, для тех, кто хочет надёжнее\n\n"
+    "1. Установи любое из них\n"
     "2. Скопируй ссылку подписки (кнопка «Моя подписка»)\n"
     "3. В приложении нажми + → Добавить из буфера\n"
     "4. Нажми кнопку подключения"
