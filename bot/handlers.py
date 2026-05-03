@@ -255,7 +255,7 @@ async def on_install_platform(cq: CallbackQuery):
         "macos": texts.INSTALL_MACOS,
     }.get(platform, "")
     await cq.message.edit_text(
-        text, parse_mode="Markdown", reply_markup=kb.back_install(),
+        text, parse_mode="HTML", reply_markup=kb.back_install(),
         link_preview_options=NO_PREVIEW,
     )
     await cq.answer()

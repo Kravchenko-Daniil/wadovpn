@@ -31,40 +31,40 @@ SUB_EXPIRED = "Подписка истекла. Можно бесплатно п
 INSTALL_CHOOSE = "Выберите платформу:"
 
 INSTALL_ANDROID = (
-    "**Android**\n\n"
-    "1. Установите [v2rayNG](https://play.google.com/store/apps/details?id=com.v2ray.ang) "
-    "или [Hiddify](https://play.google.com/store/apps/details?id=app.hiddify.com)\n"
-    "2. Откройте [Мою подписку](https://t.me/wadovpn_bot?start=mysub) и скопируйте ссылку\n"
+    "<b>Android</b>\n\n"
+    "1. Установите <a href=\"https://play.google.com/store/apps/details?id=com.v2ray.ang\">v2rayNG</a> "
+    "или <a href=\"https://play.google.com/store/apps/details?id=app.hiddify.com\">Hiddify</a>\n"
+    "2. Откройте <a href=\"https://t.me/wadovpn_bot?start=mysub\">Мою подписку</a> и скопируйте ссылку\n"
     "3. В приложении нажмите + → Импорт из буфера\n"
     "4. Нажмите кнопку подключения"
 )
 
 INSTALL_IOS = (
-    "**iOS**\n\n"
+    "<b>iOS</b>\n\n"
     "Все три приложения работают в российском App Store:\n"
-    "• [Happ Proxy Utility Plus](https://apps.apple.com/ru/app/happ-proxy-utility-plus/id6746188973) — бесплатно, рекомендую\n"
-    "• [Karing](https://apps.apple.com/ru/app/karing/id6472431552) — бесплатно, запасной вариант\n"
-    "• [Shadowrocket](https://apps.apple.com/ru/app/shadowrocket/id932747118) — 249 ₽, для тех, кто хочет надёжнее\n\n"
+    "• <a href=\"https://apps.apple.com/ru/app/happ-proxy-utility-plus/id6746188973\">Happ Proxy Utility Plus</a> — бесплатно, рекомендую\n"
+    "• <a href=\"https://apps.apple.com/ru/app/karing/id6472431552\">Karing</a> — бесплатно, запасной вариант\n"
+    "• <a href=\"https://apps.apple.com/ru/app/shadowrocket/id932747118\">Shadowrocket</a> — 249 ₽, для тех, кто хочет надёжнее\n\n"
     "1. Установите любое из них\n"
-    "2. Откройте [Мою подписку](https://t.me/wadovpn_bot?start=mysub) и скопируйте ссылку\n"
+    "2. Откройте <a href=\"https://t.me/wadovpn_bot?start=mysub\">Мою подписку</a> и скопируйте ссылку\n"
     "3. В приложении нажмите + → Добавить из буфера\n"
     "4. Нажмите кнопку подключения"
 )
 
 INSTALL_WINDOWS = (
-    "**Windows**\n\n"
-    "1. Скачайте [Hiddify-Next](https://github.com/hiddify/hiddify-app/releases/latest)\n"
+    "<b>Windows</b>\n\n"
+    "1. Скачайте <a href=\"https://github.com/hiddify/hiddify-app/releases/latest\">Hiddify-Next</a>\n"
     "2. Установите и запустите\n"
-    "3. Откройте [Мою подписку](https://t.me/wadovpn_bot?start=mysub) и скопируйте ссылку\n"
+    "3. Откройте <a href=\"https://t.me/wadovpn_bot?start=mysub\">Мою подписку</a> и скопируйте ссылку\n"
     "4. Нажмите + → Добавить из буфера\n"
     "5. Нажмите кнопку подключения"
 )
 
 INSTALL_MACOS = (
-    "**macOS**\n\n"
-    "1. Скачайте [Hiddify-Next](https://github.com/hiddify/hiddify-app/releases/latest) "
-    "или [V2Box](https://apps.apple.com/app/v2box-v2ray-client/id6446814690)\n"
-    "2. Откройте [Мою подписку](https://t.me/wadovpn_bot?start=mysub) и скопируйте ссылку\n"
+    "<b>macOS</b>\n\n"
+    "1. Скачайте <a href=\"https://github.com/hiddify/hiddify-app/releases/latest\">Hiddify-Next</a> "
+    "или <a href=\"https://apps.apple.com/app/v2box-v2ray-client/id6446814690\">V2Box</a>\n"
+    "2. Откройте <a href=\"https://t.me/wadovpn_bot?start=mysub\">Мою подписку</a> и скопируйте ссылку\n"
     "3. Добавьте подписку из буфера\n"
     "4. Подключитесь"
 )
