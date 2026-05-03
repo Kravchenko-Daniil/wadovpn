@@ -13,7 +13,7 @@ def main_menu(
         buttons.append([InlineKeyboardButton(text="✨ Попробовать бесплатно", callback_data="trial")])
     if not is_unlimited:
         buttons.append([InlineKeyboardButton(text="🎁 Получить доступ бесплатно", callback_data="buy")])
-    buttons.append([InlineKeyboardButton(text="📡 Прокси для Telegram", callback_data="tg_proxy")])
+    buttons.append([InlineKeyboardButton(text="Прокси для Telegram", callback_data="tg_proxy")])
     buttons.append([
         InlineKeyboardButton(text="Инструкция", callback_data="install"),
         InlineKeyboardButton(text="Помощь", callback_data="help"),
@@ -50,7 +50,7 @@ def back() -> InlineKeyboardMarkup:
 
 def tg_proxy_kb(proxy_url: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📡 Подключить прокси", url=proxy_url)],
+        [InlineKeyboardButton(text="Подключить прокси", url=proxy_url)],
         [InlineKeyboardButton(text="Назад", callback_data="back_main")],
     ])
 
