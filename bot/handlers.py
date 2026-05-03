@@ -77,6 +77,9 @@ async def cmd_start(msg: Message, command: CommandObject):
     if arg.startswith("inv_"):
         await _activate_invite(msg, arg[4:])
         return
+    if arg == "mysub":
+        await _send_my_sub(msg)
+        return
 
     tg_id = msg.from_user.id
     tg_username = msg.from_user.username
@@ -204,6 +207,35 @@ async def on_my_sub(cq: CallbackQuery):
         link_preview_options=NO_PREVIEW,
     )
     await cq.answer()
+
+
+async def _send_my_sub(msg: Message):
+    """Тот же экран, что и кнопка «Моя подписка», но новым сообщением (для deep-link)."""
+    user = db.get_user(msg.from_user.id)
+    if not user or not user["marzban_username"]:
+        trial_available = not bool(user and user.get("trial_used"))
+        no_sub_text = texts.NO_SUB_WITH_TRIAL if trial_available else texts.NO_SUB
+        await msg.answer(
+            no_sub_text,
+            reply_markup=kb.main_menu(has_sub=False, trial_available=trial_available),
+        )
+        return
+
+    mz = await marzban.get_user(user["marzban_username"])
+    if not mz or mz["status"] in ("expired", "limited", "disabled"):
+        await msg.answer(texts.SUB_EXPIRED, reply_markup=kb.sub_expired_kb())
+        return
+
+    text = texts.SUB_INFO.format(
+        status_line=_status_line(user["expires_at"]),
+        used=_format_bytes(mz.get("used_traffic", 0)),
+        limit=_format_bytes(mz.get("data_limit")),
+        sub_url=mz.get("subscription_url", ""),
+    )
+    await msg.answer(
+        text, parse_mode="Markdown", reply_markup=kb.sub_info_kb(),
+        link_preview_options=NO_PREVIEW,
+    )
 
 
 # Install instructions

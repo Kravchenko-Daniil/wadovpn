@@ -34,7 +34,7 @@ INSTALL_ANDROID = (
     "**Android**\n\n"
     "1. Установите [v2rayNG](https://play.google.com/store/apps/details?id=com.v2ray.ang) "
     "или [Hiddify](https://play.google.com/store/apps/details?id=app.hiddify.com)\n"
-    "2. Скопируйте ссылку подписки (кнопка «Моя подписка»)\n"
+    "2. Откройте [Мою подписку](https://t.me/wadovpn_bot?start=mysub) и скопируйте ссылку\n"
     "3. В приложении нажмите + → Импорт из буфера\n"
     "4. Нажмите кнопку подключения"
 )
@@ -46,7 +46,7 @@ INSTALL_IOS = (
     "• [Karing](https://apps.apple.com/ru/app/karing/id6472431552) — бесплатно, запасной вариант\n"
     "• [Shadowrocket](https://apps.apple.com/ru/app/shadowrocket/id932747118) — 249 ₽, для тех, кто хочет надёжнее\n\n"
     "1. Установите любое из них\n"
-    "2. Скопируйте ссылку подписки (кнопка «Моя подписка»)\n"
+    "2. Откройте [Мою подписку](https://t.me/wadovpn_bot?start=mysub) и скопируйте ссылку\n"
     "3. В приложении нажмите + → Добавить из буфера\n"
     "4. Нажмите кнопку подключения"
 )
@@ -55,7 +55,7 @@ INSTALL_WINDOWS = (
     "**Windows**\n\n"
     "1. Скачайте [Hiddify-Next](https://github.com/hiddify/hiddify-app/releases/latest)\n"
     "2. Установите и запустите\n"
-    "3. Скопируйте ссылку подписки (кнопка «Моя подписка»)\n"
+    "3. Откройте [Мою подписку](https://t.me/wadovpn_bot?start=mysub) и скопируйте ссылку\n"
     "4. Нажмите + → Добавить из буфера\n"
     "5. Нажмите кнопку подключения"
 )
@@ -64,7 +64,7 @@ INSTALL_MACOS = (
     "**macOS**\n\n"
     "1. Скачайте [Hiddify-Next](https://github.com/hiddify/hiddify-app/releases/latest) "
     "или [V2Box](https://apps.apple.com/app/v2box-v2ray-client/id6446814690)\n"
-    "2. Скопируйте ссылку подписки (кнопка «Моя подписка»)\n"
+    "2. Откройте [Мою подписку](https://t.me/wadovpn_bot?start=mysub) и скопируйте ссылку\n"
     "3. Добавьте подписку из буфера\n"
     "4. Подключитесь"
 )
